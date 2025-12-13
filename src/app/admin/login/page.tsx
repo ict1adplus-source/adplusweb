@@ -53,19 +53,17 @@ export default function AdminLoginPage() {
       }
 
       // FIX: Type cast the data to avoid 'never' type
-      const user = userData as { role: string; is_active: boolean } | null
+      // This line is CRITICAL - it fixes the TypeScript error
+      const user = userData as { role: string; is_active: boolean }
 
-      if (!user) {
-        await supabase!.auth.signOut()
-        throw new Error('Unable to verify user credentials')
-      }
-
-      // FIXED LINE 61: Changed from userData.role to user.role
+      // Check if user is admin
+      // FIXED: Changed from userData.role to user.role
       if (user.role !== 'admin') {
         await supabase!.auth.signOut()
         throw new Error('Access denied. Admin privileges required.')
       }
 
+      // Check if account is active
       // FIXED: Changed from userData.is_active to user.is_active
       if (user.is_active === false) {
         await supabase!.auth.signOut()
