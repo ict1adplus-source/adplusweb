@@ -39,14 +39,14 @@ export default function AdminLoginPage() {
         throw new Error('Authentication failed. No user data returned.')
       }
 
-      // VERIFY ADMIN ROLE - Fixed with non-null assertion
+      // VERIFY ADMIN ROLE - FIXED LINE: Added ! after supabase
       const { data: userData, error: userError } = await supabase!
         .from('users')
         .select('role, is_active')
         .eq('email', email)
         .single()
 
-      if (userError) {  // Fixed: use userError, not setError()
+      if (userError) {
         // If user doesn't exist in users table, sign them out
         await supabase!.auth.signOut()
         throw new Error('User account not found in system database')
