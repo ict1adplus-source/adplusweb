@@ -4,7 +4,12 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Lock, Shield, AlertCircle } from 'lucide-react'
-import { getSupabaseAdminClient } from '@/lib/supabase-admin'
+
+// Define types
+type User = {
+  role: string
+  is_active: boolean
+}
 
 export default function AdminLoginPage() {
   const [loading, setLoading] = useState(false)
@@ -26,11 +31,17 @@ export default function AdminLoginPage() {
         throw new Error('Email and password are required')
       }
 
-      // Get supabase client (client-only)
-      const supabase = getSupabaseAdminClient()
-      if (!supabase) {
-        throw new Error('System is currently unavailable. Please try again later.')
+      // Dynamically import supabase to avoid build issues
+      const { createClient } = await import('@supabase/supabase-js')
+      
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+      const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+      
+      if (!supabaseUrl || !supabaseAnonKey) {
+        throw new Error('System configuration error. Please contact administrator.')
       }
+
+      const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
       // Sign in with email and password
       const { data: authData, error: signInError } = await supabase.auth.signInWithPassword({
@@ -58,8 +69,7 @@ export default function AdminLoginPage() {
         throw new Error('User account not found in system database')
       }
 
-      // Type cast
-      const user = userData as { role: string; is_active: boolean }
+      const user = userData as User
 
       // Check if user is admin
       if (user.role !== 'admin') {
@@ -89,8 +99,6 @@ export default function AdminLoginPage() {
         setError('Too many login attempts. Please try again in a few minutes.')
       } else if (error.message.includes('Access denied')) {
         setError('Access denied. Admin privileges required.')
-      } else if (error.message.includes('System is currently unavailable')) {
-        setError('System is currently unavailable. Please contact support.')
       } else {
         setError(error.message || 'Login failed. Please try again.')
       }
