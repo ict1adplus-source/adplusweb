@@ -7,16 +7,6 @@ import { useAuth } from '@/contexts/AuthContext'
 import { Lock, Shield, AlertCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabase-client'
 
-// Define the User type
-interface User {
-  id: string
-  email: string
-  role: 'admin' | 'user' | 'moderator'
-  is_active: boolean
-  created_at?: string
-  updated_at?: string
-}
-
 export default function AdminLoginPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -62,8 +52,8 @@ export default function AdminLoginPage() {
         throw new Error('User account not found in system database')
       }
 
-      // Type assertion for userData
-      const user = userData as User | null
+      // Type cast to fix the "never" type error
+      const user = userData as { role: string; is_active: boolean } | null
 
       if (!user) {
         await supabase!.auth.signOut()
