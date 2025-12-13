@@ -6,7 +6,8 @@ const ADMIN_EMAILS = [
   'yankhojchigaru@gmail.com'
 ]
 
-export function middleware(req: NextRequest) {
+// CHANGE: Rename from "middleware" to "proxy"
+export function proxy(req: NextRequest) {
   // Get all cookies to check
   const cookies = req.cookies.getAll()
   
@@ -29,7 +30,7 @@ export function middleware(req: NextRequest) {
   
   const isAuthenticated = hasAuthCookie || supabaseCookies.length > 0
   
-  console.log('Middleware check:', {
+  console.log('Proxy check:', {
     path: req.nextUrl.pathname,
     cookiesFound: cookies.map(c => c.name),
     supabaseCookies: supabaseCookies.map(c => c.name),
