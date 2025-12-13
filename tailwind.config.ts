@@ -17,38 +17,26 @@ const config: Config = {
     },
     extend: {
       colors: {
-        // Vibrant Malawi-inspired colors
-        primary: {
-          DEFAULT: "#FF6B35", // Vibrant Orange
-          foreground: "#ffffff",
-        },
-        secondary: {
-          DEFAULT: "#1A535C", // Teal Blue
-          foreground: "#ffffff",
-        },
-        accent: {
-          DEFAULT: "#FFE66D", // Bright Yellow
-          foreground: "#000000",
-        },
-        malawi: {
-          red: "#FF6B35",
-          blue: "#1A535C",
-          yellow: "#FFE66D",
-          green: "#4ECDC4",
-          purple: "#6C63FF",
-          dark: "#1A1A2E",
-          light: "#F7F9FC",
-        },
-        background: "hsl(var(--background))",
-        foreground: "hsl(var(--foreground))",
-        border: "hsl(var(--border))",
-        input: "hsl(var(--input))",
-        ring: "hsl(var(--ring))",
+        // Remove CSS variables for now - use direct colors
+        primary: "#FF6B35",
+        'primary-foreground': "#ffffff",
+        secondary: "#1A535C",
+        'secondary-foreground': "#ffffff",
+        accent: "#FFE66D",
+        'accent-foreground': "#000000",
+        // Malawi colors
+        'malawi-red': '#FF6B35',
+        'malawi-blue': '#1A535C',
+        'malawi-yellow': '#FFE66D',
+        'malawi-green': '#4ECDC4',
+        'malawi-purple': '#6C63FF',
+        'malawi-dark': '#1A1A2E',
+        'malawi-light': '#F7F9FC',
       },
       fontFamily: {
-        sans: ['Inter', 'sans-serif'],
-        heading: ['Poppins', 'sans-serif'],
-      },
+  sans: ['var(--font-inter)', 'sans-serif'],
+  heading: ['var(--font-poppins)', 'sans-serif'],
+},
       animation: {
         "gradient": "gradient 8s linear infinite",
         "float": "float 6s ease-in-out infinite",
@@ -74,6 +62,7 @@ const config: Config = {
       },
     },
   },
-  plugins: [require("tailwindcss-animate")],
+  // Remove plugins for now
+  plugins: [],
 }
 export default config

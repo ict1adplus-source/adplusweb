@@ -1,63 +1,15 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@400;500;600;700;800&display=swap');
-
+/* Remove font import - handle it in layout.tsx */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
-  :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 18 100% 60%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 185 49% 24%;
-    --secondary-foreground: 0 0% 100%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 54 100% 71%;
-    --accent-foreground: 0 0% 0%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 18 100% 60%;
-    --radius: 0.5rem;
-  }
-
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 18 100% 60%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 185 49% 24%;
-    --secondary-foreground: 0 0% 100%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 54 100% 71%;
-    --accent-foreground: 0 0% 0%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 18 100% 60%;
-  }
-}
-
-@layer base {
   * {
-    @apply border-border;
+    @apply border-gray-200;
   }
   
   body {
-    @apply bg-background text-foreground font-sans antialiased;
+    @apply bg-white text-gray-900 font-sans antialiased;
   }
   
   h1, h2, h3, h4, h5, h6 {
@@ -67,10 +19,11 @@
 
 @layer utilities {
   .text-gradient {
-    @apply bg-gradient-to-r from-malawi-red via-malawi-yellow to-malawi-green bg-clip-text text-transparent;
+    @apply bg-gradient-to-r from-orange-500 to-yellow-500 bg-clip-text text-transparent;
   }
   
   .bg-gradient-vibrant {
+    background: linear-gradient(90deg, #FF6B35, #FFE66D);
     background-size: 200% 200%;
     animation: gradient 8s ease infinite;
   }
@@ -79,8 +32,83 @@
     @apply bg-white/80 backdrop-blur-lg border border-white/20;
   }
   
+  /* Infinite scroll animation */
+  @keyframes scroll {
+    0% {
+      transform: translateX(0);
+    }
+    100% {
+      transform: translateX(calc(-50% - 2rem));
+    }
+  }
+  
+  .animate-scroll {
+    animation: scroll 40s linear infinite;
+    width: max-content;
+  }
+  
+  .animate-scroll:hover {
+    animation-play-state: paused;
+  }
+  
+  /* For reverse scrolling */
+  @keyframes scroll-reverse {
+    0% {
+      transform: translateX(calc(-50% - 2rem));
+    }
+    100% {
+      transform: translateX(0);
+    }
+  }
+  
+  .animate-scroll-reverse {
+    animation: scroll-reverse 40s linear infinite;
+    width: max-content;
+  }
+  
+  .animate-scroll-reverse:hover {
+    animation-play-state: paused;
+  }
+  
   .hover-lift {
     @apply transition-transform duration-300 hover:-translate-y-1;
+  }
+  
+  /* Animation keyframes */
+  @keyframes gradient {
+    0%, 100% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+  }
+  
+  @keyframes blob {
+    0% {
+      transform: translate(0px, 0px) scale(1);
+    }
+    33% {
+      transform: translate(30px, -50px) scale(1.1);
+    }
+    66% {
+      transform: translate(-20px, 20px) scale(0.9);
+    }
+    100% {
+      transform: translate(0px, 0px) scale(1);
+    }
+  }
+  
+  .animate-blob {
+    animation: blob 7s infinite;
+  }
+  
+  .animation-delay-2000 {
+    animation-delay: 2s;
+  }
+  
+  .animation-delay-4000 {
+    animation-delay: 4s;
   }
   
   /* Custom scrollbar */
@@ -93,7 +121,7 @@
   }
   
   ::-webkit-scrollbar-thumb {
-    @apply bg-gradient-to-b from-malawi-red to-malawi-yellow rounded-full;
+    @apply bg-gradient-to-b from-orange-500 to-yellow-500 rounded-full;
   }
   
   ::-webkit-scrollbar-thumb:hover {
