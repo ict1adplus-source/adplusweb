@@ -1,57 +1,46 @@
 // lib/supabase.ts
 import { createClient } from '@supabase/supabase-js'
 
-// Helper function to validate environment variables
-const validateEnvVars = () => {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-  if (!supabaseUrl) {
-    console.error('NEXT_PUBLIC_SUPABASE_URL is not defined')
-    throw new Error('Supabase URL is not configured')
+// Get environment variables with validation
+const getEnvVar = (key: string): string => {
+  const value = process.env[key]
+  if (!value) {
+    // In production, you might want to throw an error
+    // In development, we'll use console.error
+    console.error(`Environment variable ${key} is not defined`)
+    // Return empty string to avoid null, but the app should handle this
+    return ''
   }
-
-  if (!supabaseAnonKey) {
-    console.error('NEXT_PUBLIC_SUPABASE_ANON_KEY is not defined')
-    throw new Error('Supabase anon key is not configured')
-  }
-
-  return { supabaseUrl, supabaseAnonKey }
+  return value
 }
 
-// Create supabase client with error handling
-let supabaseClient: ReturnType<typeof createClient> | null = null
+const supabaseUrl = getEnvVar('NEXT_PUBLIC_SUPABASE_URL')
+const supabaseAnonKey = getEnvVar('NEXT_PUBLIC_SUPABASE_ANON_KEY')
 
-try {
-  const { supabaseUrl, supabaseAnonKey } = validateEnvVars()
-  supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
+// Create supabase client only if we have the required values
+let supabaseInstance: ReturnType<typeof createClient> | null = null
+
+if (supabaseUrl && supabaseAnonKey) {
+  supabaseInstance = createClient(supabaseUrl, supabaseAnonKey, {
     auth: {
       persistSession: true,
       autoRefreshToken: true,
-      detectSessionInUrl: true
-    }
+      detectSessionInUrl: true,
+    },
   })
-} catch (error) {
-  console.error('Failed to initialize Supabase client:', error)
-  // In development, you might want to throw the error
-  // In production, you might want to handle it gracefully
-  if (process.env.NODE_ENV === 'development') {
-    throw error
-  }
+} else {
+  console.error('Supabase initialization failed: Missing environment variables')
 }
 
-// Export the client (will be null if initialization failed)
-export const supabase = supabaseClient
-
-// Helper function to check if supabase is available
-export const isSupabaseAvailable = () => {
-  return supabaseClient !== null
-}
-
-// Helper function to get supabase with error handling
+// Export a function that always returns a supabase client or throws an error
 export const getSupabase = () => {
-  if (!supabaseClient) {
-    throw new Error('Supabase client is not initialized. Check your environment variables.')
+  if (!supabaseInstance) {
+    throw new Error(
+      'Supabase client is not initialized. Please check your environment variables: NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY'
+    )
   }
-  return supabaseClient
+  return supabaseInstance
 }
+
+// Export the instance (might be null, but we'll handle it)
+export const supabase = supabaseInstance
