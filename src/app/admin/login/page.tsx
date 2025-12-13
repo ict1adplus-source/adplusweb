@@ -5,12 +5,6 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Lock, Shield, AlertCircle } from 'lucide-react'
 
-// Define types
-type User = {
-  role: string
-  is_active: boolean
-}
-
 export default function AdminLoginPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -26,64 +20,48 @@ export default function AdminLoginPage() {
     const password = formData.get('password') as string
     
     try {
-      // Validate inputs
       if (!email || !password) {
         throw new Error('Email and password are required')
       }
 
-      // Dynamically import supabase to avoid build issues
+      // DYNAMIC IMPORT - This won't run during build
       const { createClient } = await import('@supabase/supabase-js')
       
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
       const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
       
       if (!supabaseUrl || !supabaseAnonKey) {
-        throw new Error('System configuration error. Please contact administrator.')
+        throw new Error('System configuration error')
       }
 
       const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
-      // Sign in with email and password
+      // Sign in
       const { data: authData, error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
       
-      if (signInError) {
-        throw signInError
-      }
+      if (signInError) throw signInError
+      if (!authData?.user) throw new Error('Authentication failed')
 
-      if (!authData?.user) {
-        throw new Error('Authentication failed. No user data returned.')
-      }
-
-      // VERIFY ADMIN ROLE
+      // Check admin role
       const { data: userData, error: userError } = await supabase
         .from('users')
-        .select('role, is_active')
+        .select('role')
         .eq('email', email)
         .single()
 
       if (userError) {
         await supabase.auth.signOut()
-        throw new Error('User account not found in system database')
+        throw new Error('Admin account not found')
       }
 
-      const user = userData as User
-
-      // Check if user is admin
-      if (user.role !== 'admin') {
+      if (userData?.role !== 'admin') {
         await supabase.auth.signOut()
         throw new Error('Access denied. Admin privileges required.')
       }
 
-      // Check if account is active
-      if (user.is_active === false) {
-        await supabase.auth.signOut()
-        throw new Error('Account is deactivated. Please contact system administrator.')
-      }
-
-      // Success - redirect to admin dashboard
       router.push('/admin/dashboard')
       router.refresh()
 
@@ -99,6 +77,8 @@ export default function AdminLoginPage() {
         setError('Too many login attempts. Please try again in a few minutes.')
       } else if (error.message.includes('Access denied')) {
         setError('Access denied. Admin privileges required.')
+      } else if (error.message.includes('System configuration error')) {
+        setError('System configuration error. Please contact administrator.')
       } else {
         setError(error.message || 'Login failed. Please try again.')
       }
