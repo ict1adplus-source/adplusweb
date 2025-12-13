@@ -1,80 +1,42 @@
+// src/proxy.ts (or root/proxy.ts)
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-const ADMIN_EMAILS = [
-  'yamikanitambala@gmail.com',
-  'yankhojchigaru@gmail.com'
-]
-
-// CHANGE: Rename from "middleware" to "proxy"
-export function proxy(req: NextRequest) {
-  // Get all cookies to check
-  const cookies = req.cookies.getAll()
+// Make sure this is a named export called "proxy"
+export function proxy(request: NextRequest) {
+  // Get the pathname
+  const pathname = request.nextUrl.pathname
   
-  // Supabase stores auth in various cookie formats. Check for any auth-related cookies
-  const hasAuthCookie = cookies.some(cookie => {
-    const name = cookie.name.toLowerCase()
-    return (
-      name.includes('sb-') || // Supabase cookies
-      name.includes('auth') || // Generic auth cookies
-      name.includes('token') || // Token cookies
-      name.includes('session') // Session cookies
-    )
-  })
+  console.log('Proxy running for:', pathname)
   
-  // Also check for the specific cookie format Supabase uses
-  // Supabase creates cookies like: sb-<project-id>-auth-token
-  const supabaseCookies = cookies.filter(cookie => 
-    cookie.name.startsWith('sb-') && cookie.name.includes('auth')
-  )
+  // Basic authentication check
+  const hasAuth = request.cookies.get('sb-auth-token') || 
+                  request.cookies.get('supabase-auth-token')
   
-  const isAuthenticated = hasAuthCookie || supabaseCookies.length > 0
-  
-  console.log('Proxy check:', {
-    path: req.nextUrl.pathname,
-    cookiesFound: cookies.map(c => c.name),
-    supabaseCookies: supabaseCookies.map(c => c.name),
-    isAuthenticated,
-  })
-
-  // If trying to access login page but already authenticated
-  if (isAuthenticated && req.nextUrl.pathname === '/auth/login') {
-    console.log('Already authenticated, redirecting from login')
-    
-    // Try to find user email in cookies
-    let userEmail = ''
-    const emailCookie = cookies.find(c => 
-      c.name.includes('email') || c.value.includes('@')
-    )
-    if (emailCookie) {
-      userEmail = emailCookie.value
-    }
-    
-    const isAdmin = userEmail ? ADMIN_EMAILS.includes(userEmail.toLowerCase()) : false
-    return NextResponse.redirect(
-      new URL(isAdmin ? '/admin/dashboard' : '/client/dashboard', req.url)
-    )
+  // Protect admin routes
+  if (pathname.startsWith('/admin') && !hasAuth) {
+    console.log('Redirecting to login from:', pathname)
+    return NextResponse.redirect(new URL('/auth/login', request.url))
   }
-
-  // Redirect unauthenticated users from protected routes
-  // BUT allow access in development for testing
-  if (!isAuthenticated && 
-      (req.nextUrl.pathname.startsWith('/client') || 
-       req.nextUrl.pathname.startsWith('/admin'))) {
-    
-    // In development, allow access but log warning
-    if (process.env.NODE_ENV === 'development') {
-      console.warn('Development: Allowing access without auth cookies to:', req.nextUrl.pathname)
-      return NextResponse.next()
-    }
-    
-    console.log('Not authenticated, redirecting to login')
-    return NextResponse.redirect(new URL('/auth/login', req.url))
+  
+  // If already authenticated and trying to access login, redirect to dashboard
+  if (hasAuth && pathname === '/auth/login') {
+    return NextResponse.redirect(new URL('/admin/dashboard', request.url))
   }
-
+  
   return NextResponse.next()
 }
 
+// Optional: Configure which paths this middleware runs on
 export const config = {
-  matcher: ['/client/:path*', '/admin/:path*', '/auth/login'],
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - api (API routes)
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     */
+    '/((?!api|_next/static|_next/image|favicon.ico).*)',
+  ],
 }
