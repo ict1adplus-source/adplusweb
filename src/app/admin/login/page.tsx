@@ -5,13 +5,21 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { Lock, Shield, AlertCircle } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase-client'
 
 export default function AdminLoginPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const { signIn } = useAuth()
   const router = useRouter()
+
+  // Helper function to ensure supabase is available
+  const getSupabase = () => {
+    if (!supabase) {
+      throw new Error('Database service is currently unavailable. Please try again later.')
+    }
+    return supabase
+  }
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -28,6 +36,9 @@ export default function AdminLoginPage() {
         throw new Error('Email and password are required')
       }
 
+      // Get supabase instance
+      const db = getSupabase()
+
       // Sign in with email and password
       const { data: authData, error: signInError } = await signIn(email, password)
       
@@ -39,33 +50,33 @@ export default function AdminLoginPage() {
         throw new Error('Authentication failed. No user data returned.')
       }
 
-      // VERIFY ADMIN ROLE - This is the fixed line
-      const { data: userData, error: userError } = await supabase
+      // VERIFY ADMIN ROLE
+      const { data: userData, error: userError } = await db
         .from('users')
-        .select('role, is_active')
+        .select('role, is_active, id, email')
         .eq('email', email)
         .single()
 
       if (userError) {
         // If user doesn't exist in users table, sign them out
-        await supabase.auth.signOut()
-        throw new Error('User account not found in system database')
+        await db.auth.signOut()
+        throw new Error('Admin account not found. Please contact system administrator.')
       }
 
       if (!userData) {
-        await supabase.auth.signOut()
-        throw new Error('Unable to verify user credentials')
+        await db.auth.signOut()
+        throw new Error('Unable to verify admin credentials.')
       }
 
       // Check if user is admin
       if (userData.role !== 'admin') {
-        await supabase.auth.signOut()
+        await db.auth.signOut()
         throw new Error('Access denied. Admin privileges required.')
       }
 
       // Check if account is active
       if (userData.is_active === false) {
-        await supabase.auth.signOut()
+        await db.auth.signOut()
         throw new Error('Account is deactivated. Please contact system administrator.')
       }
 
@@ -85,6 +96,10 @@ export default function AdminLoginPage() {
         setError('Too many login attempts. Please try again in a few minutes.')
       } else if (error.message.includes('Access denied')) {
         setError('Access denied. Admin privileges required.')
+      } else if (error.message.includes('Database service')) {
+        setError('System error: Database service unavailable. Please contact support.')
+      } else if (error.message.includes('Admin account not found')) {
+        setError('Admin account not found. Please verify your credentials.')
       } else {
         setError(error.message || 'Login failed. Please try again.')
       }
