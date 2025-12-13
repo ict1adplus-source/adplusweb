@@ -5,8 +5,10 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { Lock, Shield } from 'lucide-react'
+import { supabase } from '@/lib/supabase' // ← ADD THIS LINE
 
 export default function AdminLoginPage() {
+  // ... rest of your code {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const { signIn } = useAuth()
