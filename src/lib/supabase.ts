@@ -1,12 +1,30 @@
-// lib/supabase.ts
+// lib/supabase.ts - CLIENT-SIDE ONLY VERSION
 import { createClient } from '@supabase/supabase-js'
 
-// Type assertion for environment variables
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+// This file should ONLY be used on the client side
+// It will not be called during SSR/static generation
 
-// Create the client with type assertion that it will not be null
-const supabaseClient = createClient(supabaseUrl, supabaseAnonKey)
+// Check if we're in the browser
+const isBrowser = typeof window !== 'undefined'
 
-// Export with a type that tells TypeScript this is NOT null
-export const supabase = supabaseClient as NonNullable<typeof supabaseClient>
+let supabaseClient = null
+
+if (isBrowser) {
+  // Only initialize on the client side
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  
+  if (supabaseUrl && supabaseAnonKey) {
+    supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+      },
+    })
+  } else {
+    console.warn('Supabase: Missing environment variables on client side')
+  }
+}
+
+export const supabase = supabaseClient

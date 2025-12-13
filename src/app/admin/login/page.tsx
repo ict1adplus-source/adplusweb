@@ -28,6 +28,11 @@ export default function AdminLoginPage() {
         throw new Error('Email and password are required')
       }
 
+      // Check if supabase is available
+      if (!supabase) {
+        throw new Error('System is currently unavailable. Please try again later or contact support.')
+      }
+
       // Sign in with email and password
       const { data: authData, error: signInError } = await signIn(email, password)
       
@@ -40,7 +45,7 @@ export default function AdminLoginPage() {
       }
 
       // VERIFY ADMIN ROLE
-      const { data: userData, error: userError } = await supabase!
+      const { data: userData, error: userError } = await supabase
         .from('users')
         .select('role, is_active')
         .eq('email', email)
@@ -48,25 +53,22 @@ export default function AdminLoginPage() {
 
       if (userError) {
         // If user doesn't exist in users table, sign them out
-        await supabase!.auth.signOut()
+        await supabase.auth.signOut()
         throw new Error('User account not found in system database')
       }
 
-      // FIX: Type cast the data to avoid 'never' type
-      // This line is CRITICAL - it fixes the TypeScript error
+      // Type cast
       const user = userData as { role: string; is_active: boolean }
 
       // Check if user is admin
-      // FIXED: Changed from userData.role to user.role
       if (user.role !== 'admin') {
-        await supabase!.auth.signOut()
+        await supabase.auth.signOut()
         throw new Error('Access denied. Admin privileges required.')
       }
 
       // Check if account is active
-      // FIXED: Changed from userData.is_active to user.is_active
       if (user.is_active === false) {
-        await supabase!.auth.signOut()
+        await supabase.auth.signOut()
         throw new Error('Account is deactivated. Please contact system administrator.')
       }
 
@@ -86,6 +88,8 @@ export default function AdminLoginPage() {
         setError('Too many login attempts. Please try again in a few minutes.')
       } else if (error.message.includes('Access denied')) {
         setError('Access denied. Admin privileges required.')
+      } else if (error.message.includes('System is currently unavailable')) {
+        setError('System is currently unavailable. Please contact support.')
       } else {
         setError(error.message || 'Login failed. Please try again.')
       }
