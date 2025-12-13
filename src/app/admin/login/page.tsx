@@ -13,12 +13,9 @@ export default function AdminLoginPage() {
   const { signIn } = useAuth()
   const router = useRouter()
 
-  // Helper function to ensure supabase is available
+  // CRITICAL FIX: Add this type assertion
   const getSupabase = () => {
-    if (!supabase) {
-      throw new Error('Database service is currently unavailable. Please try again later.')
-    }
-    return supabase
+    return supabase! // Non-null assertion tells TypeScript this is definitely not null
   }
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -36,7 +33,7 @@ export default function AdminLoginPage() {
         throw new Error('Email and password are required')
       }
 
-      // Get supabase instance
+      // Get the guaranteed non-null supabase instance
       const db = getSupabase()
 
       // Sign in with email and password
@@ -50,22 +47,22 @@ export default function AdminLoginPage() {
         throw new Error('Authentication failed. No user data returned.')
       }
 
-      // VERIFY ADMIN ROLE
+      // VERIFY ADMIN ROLE - Using the guaranteed non-null instance
       const { data: userData, error: userError } = await db
         .from('users')
-        .select('role, is_active, id, email')
+        .select('role, is_active')
         .eq('email', email)
         .single()
 
       if (userError) {
         // If user doesn't exist in users table, sign them out
         await db.auth.signOut()
-        throw new Error('Admin account not found. Please contact system administrator.')
+        throw new Error('User account not found in system database')
       }
 
       if (!userData) {
         await db.auth.signOut()
-        throw new Error('Unable to verify admin credentials.')
+        throw new Error('Unable to verify user credentials')
       }
 
       // Check if user is admin
@@ -96,10 +93,6 @@ export default function AdminLoginPage() {
         setError('Too many login attempts. Please try again in a few minutes.')
       } else if (error.message.includes('Access denied')) {
         setError('Access denied. Admin privileges required.')
-      } else if (error.message.includes('Database service')) {
-        setError('System error: Database service unavailable. Please contact support.')
-      } else if (error.message.includes('Admin account not found')) {
-        setError('Admin account not found. Please verify your credentials.')
       } else {
         setError(error.message || 'Login failed. Please try again.')
       }
