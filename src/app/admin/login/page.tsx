@@ -52,7 +52,7 @@ export default function AdminLoginPage() {
         throw new Error('User account not found in system database')
       }
 
-      // Type cast to fix the "never" type error
+      // FIX: Type cast the data to avoid 'never' type
       const user = userData as { role: string; is_active: boolean } | null
 
       if (!user) {
@@ -60,13 +60,13 @@ export default function AdminLoginPage() {
         throw new Error('Unable to verify user credentials')
       }
 
-      // Check if user is admin
+      // FIXED LINE 61: Changed from userData.role to user.role
       if (user.role !== 'admin') {
         await supabase!.auth.signOut()
         throw new Error('Access denied. Admin privileges required.')
       }
 
-      // Check if account is active
+      // FIXED: Changed from userData.is_active to user.is_active
       if (user.is_active === false) {
         await supabase!.auth.signOut()
         throw new Error('Account is deactivated. Please contact system administrator.')
