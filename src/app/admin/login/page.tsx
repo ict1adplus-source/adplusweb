@@ -7,6 +7,16 @@ import { useAuth } from '@/contexts/AuthContext'
 import { Lock, Shield, AlertCircle } from 'lucide-react'
 import { supabase } from '@/lib/supabase-client'
 
+// Define the User type
+interface User {
+  id: string
+  email: string
+  role: 'admin' | 'user' | 'moderator'
+  is_active: boolean
+  created_at?: string
+  updated_at?: string
+}
+
 export default function AdminLoginPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -39,7 +49,7 @@ export default function AdminLoginPage() {
         throw new Error('Authentication failed. No user data returned.')
       }
 
-      // VERIFY ADMIN ROLE - FIXED LINE: Added ! after supabase
+      // VERIFY ADMIN ROLE
       const { data: userData, error: userError } = await supabase!
         .from('users')
         .select('role, is_active')
@@ -52,19 +62,22 @@ export default function AdminLoginPage() {
         throw new Error('User account not found in system database')
       }
 
-      if (!userData) {
+      // Type assertion for userData
+      const user = userData as User | null
+
+      if (!user) {
         await supabase!.auth.signOut()
         throw new Error('Unable to verify user credentials')
       }
 
       // Check if user is admin
-      if (userData.role !== 'admin') {
+      if (user.role !== 'admin') {
         await supabase!.auth.signOut()
         throw new Error('Access denied. Admin privileges required.')
       }
 
       // Check if account is active
-      if (userData.is_active === false) {
+      if (user.is_active === false) {
         await supabase!.auth.signOut()
         throw new Error('Account is deactivated. Please contact system administrator.')
       }
