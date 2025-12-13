@@ -1,46 +1,12 @@
 // lib/supabase.ts
 import { createClient } from '@supabase/supabase-js'
 
-// Get environment variables with validation
-const getEnvVar = (key: string): string => {
-  const value = process.env[key]
-  if (!value) {
-    // In production, you might want to throw an error
-    // In development, we'll use console.error
-    console.error(`Environment variable ${key} is not defined`)
-    // Return empty string to avoid null, but the app should handle this
-    return ''
-  }
-  return value
-}
+// Type assertion for environment variables
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
-const supabaseUrl = getEnvVar('NEXT_PUBLIC_SUPABASE_URL')
-const supabaseAnonKey = getEnvVar('NEXT_PUBLIC_SUPABASE_ANON_KEY')
+// Create the client with type assertion that it will not be null
+const supabaseClient = createClient(supabaseUrl, supabaseAnonKey)
 
-// Create supabase client only if we have the required values
-let supabaseInstance: ReturnType<typeof createClient> | null = null
-
-if (supabaseUrl && supabaseAnonKey) {
-  supabaseInstance = createClient(supabaseUrl, supabaseAnonKey, {
-    auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: true,
-    },
-  })
-} else {
-  console.error('Supabase initialization failed: Missing environment variables')
-}
-
-// Export a function that always returns a supabase client or throws an error
-export const getSupabase = () => {
-  if (!supabaseInstance) {
-    throw new Error(
-      'Supabase client is not initialized. Please check your environment variables: NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY'
-    )
-  }
-  return supabaseInstance
-}
-
-// Export the instance (might be null, but we'll handle it)
-export const supabase = supabaseInstance
+// Export with a type that tells TypeScript this is NOT null
+export const supabase = supabaseClient as NonNullable<typeof supabaseClient>
