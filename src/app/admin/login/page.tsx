@@ -13,11 +13,6 @@ export default function AdminLoginPage() {
   const { signIn } = useAuth()
   const router = useRouter()
 
-  // CRITICAL FIX: Add this type assertion
-  const getSupabase = () => {
-    return supabase! // Non-null assertion tells TypeScript this is definitely not null
-  }
-
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setLoading(true)
@@ -33,9 +28,6 @@ export default function AdminLoginPage() {
         throw new Error('Email and password are required')
       }
 
-      // Get the guaranteed non-null supabase instance
-      const db = getSupabase()
-
       // Sign in with email and password
       const { data: authData, error: signInError } = await signIn(email, password)
       
@@ -47,33 +39,33 @@ export default function AdminLoginPage() {
         throw new Error('Authentication failed. No user data returned.')
       }
 
-      // VERIFY ADMIN ROLE - Using the guaranteed non-null instance
-      const { data: userData, error: userError } = await db
+      // VERIFY ADMIN ROLE - Fixed with non-null assertion
+      const { data: userData, error: userError } = await supabase!
         .from('users')
         .select('role, is_active')
         .eq('email', email)
         .single()
 
-      if (userError) {
+      if (userError) {  // Fixed: use userError, not setError()
         // If user doesn't exist in users table, sign them out
-        await db.auth.signOut()
+        await supabase!.auth.signOut()
         throw new Error('User account not found in system database')
       }
 
       if (!userData) {
-        await db.auth.signOut()
+        await supabase!.auth.signOut()
         throw new Error('Unable to verify user credentials')
       }
 
       // Check if user is admin
       if (userData.role !== 'admin') {
-        await db.auth.signOut()
+        await supabase!.auth.signOut()
         throw new Error('Access denied. Admin privileges required.')
       }
 
       // Check if account is active
       if (userData.is_active === false) {
-        await db.auth.signOut()
+        await supabase!.auth.signOut()
         throw new Error('Account is deactivated. Please contact system administrator.')
       }
 
