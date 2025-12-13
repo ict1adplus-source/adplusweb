@@ -3,14 +3,12 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useAuth } from '@/contexts/AuthContext'
 import { Lock, Shield, AlertCircle } from 'lucide-react'
-import { supabase } from '@/lib/supabase-client'
+import { getSupabaseAdminClient } from '@/lib/supabase-admin'
 
 export default function AdminLoginPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const { signIn } = useAuth()
   const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -28,13 +26,17 @@ export default function AdminLoginPage() {
         throw new Error('Email and password are required')
       }
 
-      // Check if supabase is available
+      // Get supabase client (client-only)
+      const supabase = getSupabaseAdminClient()
       if (!supabase) {
-        throw new Error('System is currently unavailable. Please try again later or contact support.')
+        throw new Error('System is currently unavailable. Please try again later.')
       }
 
       // Sign in with email and password
-      const { data: authData, error: signInError } = await signIn(email, password)
+      const { data: authData, error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
       
       if (signInError) {
         throw signInError
@@ -52,7 +54,6 @@ export default function AdminLoginPage() {
         .single()
 
       if (userError) {
-        // If user doesn't exist in users table, sign them out
         await supabase.auth.signOut()
         throw new Error('User account not found in system database')
       }

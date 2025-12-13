@@ -1,30 +1,34 @@
-// lib/supabase.ts - CLIENT-SIDE ONLY VERSION
-import { createClient } from '@supabase/supabase-js'
+// lib/supabase.ts
+import { createBrowserClient } from '@supabase/ssr'
+import { createServerClient } from '@supabase/ssr'
+import { cookies } from 'next/headers'
 
-// This file should ONLY be used on the client side
-// It will not be called during SSR/static generation
-
-// Check if we're in the browser
-const isBrowser = typeof window !== 'undefined'
-
-let supabaseClient = null
-
-if (isBrowser) {
-  // Only initialize on the client side
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  
-  if (supabaseUrl && supabaseAnonKey) {
-    supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
-      auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-        detectSessionInUrl: true,
-      },
-    })
-  } else {
-    console.warn('Supabase: Missing environment variables on client side')
+export const createClient = () => {
+  // Check if we're in a browser environment
+  if (typeof window !== 'undefined') {
+    // Browser client
+    return createBrowserClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    )
   }
+  
+  // Server client (won't be called during static build if we're careful)
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return []
+        },
+        setAll() {
+          // No-op during build
+        },
+      },
+    }
+  )
 }
 
-export const supabase = supabaseClient
+// Export a client instance (safe for build)
+export const supabase = createClient()
