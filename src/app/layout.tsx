@@ -1,4 +1,3 @@
-
 import type { Metadata } from 'next'
 import { Inter, Poppins } from 'next/font/google'
 import './globals.css'
@@ -10,12 +9,14 @@ import { AuthProvider } from '@/contexts/AuthContext'
 const inter = Inter({ 
   subsets: ['latin'],
   variable: '--font-inter',
+  display: 'swap', // Added for better font loading
 })
 
 const poppins = Poppins({
   weight: ['400', '500', '600', '700', '800'],
   subsets: ['latin'],
   variable: '--font-poppins',
+  display: 'swap',
 })
 
 export const metadata: Metadata = {
@@ -44,6 +45,7 @@ export const metadata: Metadata = {
     title: 'Ad Plus Digital Marketing Agency',
     description: 'Malawi\'s premier digital marketing agency',
     images: ['/twitter-image.jpg'],
+    creator: '@adplusdigital',
   },
   robots: {
     index: true,
@@ -56,10 +58,18 @@ export const metadata: Metadata = {
       'max-snippet': -1,
     },
   },
-  verification: {
-    google: 'your-google-verification-code',
+  // Remove or replace with actual verification code
+  // verification: {
+  //   google: 'your-actual-google-verification-code-here',
+  // },
+  metadataBase: new URL('https://adplusdigitalmw.com'), // Added for absolute URLs
+  alternates: {
+    canonical: '/',
   },
 }
+
+// Google Analytics ID - Replace with your actual ID or remove if not needed
+const GA_ID = process.env.NEXT_PUBLIC_GA_ID || 'G-XXXXXXXXXX'
 
 export default function RootLayout({
   children,
@@ -69,33 +79,73 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${inter.variable} ${poppins.variable} scroll-smooth`}>
       <head>
-        {/* Use logo.png as favicon */}
+        {/* Meta tags */}
+        <meta charSet="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        
+        {/* Favicon */}
         <link rel="icon" type="image/png" href="/logo.png" />
         <link rel="shortcut icon" href="/logo.png" type="image/png" />
         <link rel="apple-touch-icon" href="/logo.png" />
+        
+        {/* Theme */}
         <meta name="theme-color" content="#2563eb" />
+        
+        {/* Additional meta for better SEO */}
+        <meta name="geo.region" content="MW" />
+        <meta name="geo.placename" content="Malawi" />
+        <meta name="geo.position" content="-13.9626;33.7741" />
+        <meta name="ICBM" content="-13.9626, 33.7741" />
       </head>
-      <body className={`${inter.className} antialiased bg-white text-gray-900`}>
+      <body className={`${inter.className} antialiased bg-white text-gray-900 min-h-screen flex flex-col`}>
         <AuthProvider>
           <Navbar />
-          <main className="min-h-screen pt-16">{children}</main>
+          <main className="flex-grow pt-16 md:pt-20">{children}</main>
           <WhatsAppButton />
           <Footer />
         </AuthProvider>
         
-        {/* Google Analytics Script (optional) */}
+        {/* Google Analytics Script - Only include if GA_ID is valid */}
+        {GA_ID && GA_ID !== 'G-XXXXXXXXXX' && (
+          <>
+            <script
+              async
+              src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
+            />
+            <script
+              dangerouslySetInnerHTML={{
+                __html: `
+                  window.dataLayer = window.dataLayer || [];
+                  function gtag(){dataLayer.push(arguments);}
+                  gtag('js', new Date());
+                  gtag('config', '${GA_ID}');
+                `,
+              }}
+            />
+          </>
+        )}
+        
+        {/* Schema Markup for Organization (optional) */}
         <script
-          async
-          src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"
-        />
-        <script
+          type="application/ld+json"
           dangerouslySetInnerHTML={{
-            __html: `
-              window.dataLayer = window.dataLayer || [];
-              function gtag(){dataLayer.push(arguments);}
-              gtag('js', new Date());
-              gtag('config', 'G-XXXXXXXXXX');
-            `,
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "Organization",
+              "name": "Ad Plus Digital Marketing Agency",
+              "url": "https://adplusdigitalmw.com",
+              "logo": "https://adplusdigitalmw.com/logo.png",
+              "description": "Full-service digital marketing agency in Malawi",
+              "address": {
+                "@type": "PostalAddress",
+                "addressCountry": "Malawi"
+              },
+              "contactPoint": {
+                "@type": "ContactPoint",
+                "contactType": "customer service",
+                "availableLanguage": "English"
+              }
+            })
           }}
         />
       </body>

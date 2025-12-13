@@ -1,12 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { Mail, CheckCircle, Clock, ArrowRight } from 'lucide-react'
 
-export default function VerifyEmailPage() {
+// Create a separate component that uses useSearchParams
+function VerifyEmailContent() {
   const [email, setEmail] = useState('')
   const [verificationCode, setVerificationCode] = useState(['', '', '', '', '', ''])
   const [loading, setLoading] = useState(false)
@@ -198,5 +199,35 @@ export default function VerifyEmailPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+// Loading fallback component
+function VerifyEmailLoading() {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-malawi-light via-white to-malawi-light flex items-center justify-center p-4">
+      <div className="max-w-md w-full">
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-4">
+            <Mail className="h-8 w-8 text-primary" />
+          </div>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Verify Your Email</h1>
+          <div className="bg-white rounded-2xl shadow-xl p-8">
+            <div className="flex justify-center items-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Main component with Suspense boundary
+export default function VerifyEmailPage() {
+  return (
+    <Suspense fallback={<VerifyEmailLoading />}>
+      <VerifyEmailContent />
+    </Suspense>
   )
 }
