@@ -2,49 +2,34 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase, ADMIN_EMAILS } from '@/contexts/AuthContext'
+import { supabase } from '@/contexts/AuthContext'
 import { 
-  Users, 
   FolderKanban, 
-  DollarSign, 
-  BarChart3,
+  FileText, 
+  MessageSquare, 
+  Clock, 
+  CheckCircle, 
   LogOut,
   Eye,
-  MessageSquare,
-  CheckCircle,
-  Clock,
-  Shield,
+  User,
+  Building,
   Mail,
-  Calendar
+  Phone,
+  Plus,
+  ArrowRight
 } from 'lucide-react'
 
-// Admin configurations
-const ADMIN_CONFIGS = {
-  'yamikanitambala@gmail.com': {
-    name: 'Yamikani Tambala',
-    title: 'CEO',
-    phone: '+265882367459',
-  },
-  'yankhojchigaru@gmail.com': {
-    name: 'Yankho Chigaru',
-    title: 'Managing Director',
-    phone: '+265882147485',
-  }
-}
-
-export default function AdminDashboard() {
+export default function ClientDashboard() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
-  const [adminInfo, setAdminInfo] = useState<any>(null)
+  const [userInfo, setUserInfo] = useState<any>(null)
+  const [projects, setProjects] = useState<any[]>([])
   const [stats, setStats] = useState({
-    totalClients: 0,
-    activeProjects: 0,
-    pendingProjects: 0,
-    completedProjects: 0,
-    revenue: 0,
+    total: 0,
+    inProgress: 0,
+    completed: 0,
+    pending: 0,
   })
-  const [recentProjects, setRecentProjects] = useState<any[]>([])
-  const [recentClients, setRecentClients] = useState<any[]>([])
 
   useEffect(() => {
     checkAuthAndLoadData()
@@ -52,7 +37,6 @@ export default function AdminDashboard() {
 
   const checkAuthAndLoadData = async () => {
     try {
-      // Check session
       const { data: { session } } = await supabase.auth.getSession()
       
       if (!session) {
@@ -60,59 +44,43 @@ export default function AdminDashboard() {
         return
       }
 
-      const userEmail = session.user.email?.toLowerCase() || ''
-      
-      // Check if admin
-      if (!ADMIN_EMAILS.includes(userEmail)) {
-        router.push('/client/dashboard')
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', session.user.email)
+        .single()
+
+      if (userError) {
+        console.error('User error:', userError)
+        router.push('/auth/login')
         return
       }
 
-      // Set admin info
-      const config = ADMIN_CONFIGS[userEmail as keyof typeof ADMIN_CONFIGS]
-      if (config) {
-        setAdminInfo({
-          ...config,
-          email: userEmail,
-        })
+      if (userData) {
+        setUserInfo(userData)
       }
 
-      // Load dashboard data
-      await loadDashboardData()
+      const { data: projectsData, error: projectsError } = await supabase
+        .from('projects')
+        .select('*')
+        .eq('client_id', session.user.id)
+        .order('created_at', { ascending: false })
+
+      console.log('Projects loaded:', projectsData)
+      console.log('Projects error:', projectsError)
+
+      setProjects(projectsData || [])
+
+      const total = projectsData?.length || 0
+      const inProgress = projectsData?.filter(p => p.status === 'in-progress').length || 0
+      const completed = projectsData?.filter(p => p.status === 'completed' || p.status === 'delivered').length || 0
+      const pending = projectsData?.filter(p => p.status === 'pending').length || 0
+
+      setStats({ total, inProgress, completed, pending })
     } catch (error) {
       console.error('Error loading dashboard:', error)
     } finally {
       setLoading(false)
-    }
-  }
-
-  const loadDashboardData = async () => {
-    try {
-      // Load clients
-      const { data: clients } = await supabase
-        .from('users')
-        .select('*')
-        .neq('role', 'admin')
-        .order('created_at', { ascending: false })
-
-      // Load projects
-      const { data: projects } = await supabase
-        .from('projects')
-        .select('*')
-        .order('created_at', { ascending: false })
-
-      // Calculate stats
-      const totalClients = clients?.length || 0
-      const activeProjects = projects?.filter(p => p.status === 'in-progress').length || 0
-      const pendingProjects = projects?.filter(p => p.status === 'pending').length || 0
-      const completedProjects = projects?.filter(p => p.status === 'completed' || p.status === 'delivered').length || 0
-      const revenue = projects?.reduce((sum, p) => sum + (p.budget || 0), 0) || 0
-
-      setStats({ totalClients, activeProjects, pendingProjects, completedProjects, revenue })
-      setRecentProjects(projects?.slice(0, 5) || [])
-      setRecentClients(clients?.slice(0, 5) || [])
-    } catch (error) {
-      console.error('Error loading data:', error)
     }
   }
 
@@ -129,265 +97,229 @@ export default function AdminDashboard() {
     'delivered': 'bg-emerald-100 text-emerald-800',
   }
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
-      </div>
-    )
+  const handleViewProject = (projectId: string) => {
+    router.push(`/client/projects/${projectId}`)
   }
 
-  if (!adminInfo) {
+  const handleMessageTeam = (projectId: string) => {
+    router.push(`/client/projects/${projectId}?tab=messages`)
+  }
+
+  if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-xl font-semibold text-gray-700">Admin info not found</h2>
-          <button 
-            onClick={() => router.push('/auth/login')}
-            className="mt-4 px-4 py-2 bg-orange-500 text-white rounded hover:bg-orange-600"
-          >
-            Go to Login
-          </button>
-        </div>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
       </div>
     )
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Simple Header */}
-      <header className="bg-gradient-to-r from-gray-900 to-gray-800 text-white">
+      <header className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex justify-between items-center">
             <div>
-              <div className="flex items-center gap-2 mb-1">
-                <Shield className="h-5 w-5 text-orange-300" />
-                <h1 className="text-xl font-bold">Admin Dashboard</h1>
-              </div>
-              <div className="text-xs text-gray-300">
-                {adminInfo.name} • {adminInfo.email}
-              </div>
+              <h1 className="text-2xl font-bold text-gray-900">Client Portal</h1>
+              <p className="text-gray-600">Welcome back, {userInfo?.name || 'Client'}</p>
             </div>
-            <button
-              onClick={handleSignOut}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white rounded-lg transition-colors text-sm"
-            >
-              <LogOut className="h-4 w-4" />
-              Sign Out
-            </button>
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => router.push('/client/projects/create')}
+                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-500 to-yellow-500 text-white rounded-lg hover:opacity-90 transition-all"
+              >
+                <Plus className="h-5 w-5" />
+                New Project
+              </button>
+              <button
+                onClick={handleSignOut}
+                className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <LogOut className="h-4 w-4" />
+                Sign Out
+              </button>
+            </div>
           </div>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
-          <div className="bg-white rounded-lg p-4 shadow border">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-600 text-xs font-medium">Total Clients</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.totalClients}</p>
+        <div className="bg-white rounded-xl shadow p-6 mb-8">
+          <h2 className="text-xl font-bold text-gray-900 mb-4">Your Information</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-blue-100 rounded-lg">
+                <User className="h-6 w-6 text-blue-600" />
               </div>
-              <div className="p-2 bg-orange-100 rounded">
-                <Users className="h-6 w-6 text-orange-600" />
+              <div>
+                <p className="text-sm text-gray-600">Name</p>
+                <p className="font-semibold">{userInfo?.name || 'Not set'}</p>
               </div>
             </div>
-          </div>
-
-          <div className="bg-white rounded-lg p-4 shadow border">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-600 text-xs font-medium">Active Projects</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.activeProjects}</p>
+            
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-green-100 rounded-lg">
+                <Building className="h-6 w-6 text-green-600" />
               </div>
-              <div className="p-2 bg-blue-100 rounded">
-                <FolderKanban className="h-6 w-6 text-blue-600" />
+              <div>
+                <p className="text-sm text-gray-600">Company</p>
+                <p className="font-semibold">{userInfo?.company || 'Not set'}</p>
               </div>
             </div>
-          </div>
-
-          <div className="bg-white rounded-lg p-4 shadow border">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-600 text-xs font-medium">Pending</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.pendingProjects}</p>
+            
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-purple-100 rounded-lg">
+                <Mail className="h-6 w-6 text-purple-600" />
               </div>
-              <div className="p-2 bg-yellow-100 rounded">
-                <Clock className="h-6 w-6 text-yellow-600" />
+              <div>
+                <p className="text-sm text-gray-600">Email</p>
+                <p className="font-semibold">{userInfo?.email || 'Not set'}</p>
               </div>
             </div>
-          </div>
-
-          <div className="bg-white rounded-lg p-4 shadow border">
-            <div className="flex items-center justify-between">
+            
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-orange-100 rounded-lg">
+                <Phone className="h-6 w-6 text-orange-600" />
+              </div>
               <div>
-                <p className="text-gray-600 text-xs font-medium">Completed</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.completedProjects}</p>
-              </div>
-              <div className="p-2 bg-green-100 rounded">
-                <CheckCircle className="h-6 w-6 text-green-600" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg p-4 shadow border">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-600 text-xs font-medium">Revenue</p>
-                <p className="text-2xl font-bold text-gray-900">MK{stats.revenue.toLocaleString()}</p>
-              </div>
-              <div className="p-2 bg-emerald-100 rounded">
-                <DollarSign className="h-6 w-6 text-emerald-600" />
+                <p className="text-sm text-gray-600">Phone</p>
+                <p className="font-semibold">{userInfo?.phone || 'Not set'}</p>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Dashboard content */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Recent Projects */}
-          <div className="bg-white rounded-lg shadow border overflow-hidden">
-            <div className="px-4 py-3 border-b bg-gray-50">
-              <div className="flex justify-between items-center">
-                <div className="flex items-center gap-2">
-                  <FolderKanban className="h-4 w-4 text-orange-600" />
-                  <h2 className="font-bold text-gray-900">Recent Projects</h2>
-                </div>
-                <button className="text-orange-600 hover:text-orange-700 text-xs font-medium">
-                  View All →
-                </button>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="bg-white rounded-xl p-6 shadow hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-600">Total Projects</p>
+                <p className="text-3xl font-bold text-gray-900">{stats.total}</p>
               </div>
-            </div>
-
-            <div className="divide-y">
-              {recentProjects.length > 0 ? (
-                recentProjects.map((project) => (
-                  <div key={project.id} className="p-4 hover:bg-gray-50">
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-gray-900 text-sm">{project.title}</h3>
-                        <div className="flex items-center gap-2 mt-2">
-                          <span className={`px-2 py-1 rounded text-xs ${statusColors[project.status]}`}>
-                            {project.status.replace('-', ' ')}
-                          </span>
-                          <span className="text-xs text-gray-500">
-                            {new Date(project.created_at).toLocaleDateString()}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex gap-1">
-                        <button className="p-1 text-gray-400 hover:text-orange-600">
-                          <Eye className="h-3 w-3" />
-                        </button>
-                        <button className="p-1 text-gray-400 hover:text-blue-600">
-                          <MessageSquare className="h-3 w-3" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="p-6 text-center">
-                  <FolderKanban className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-                  <p className="text-gray-500 text-sm">No projects yet</p>
-                </div>
-              )}
+              <FolderKanban className="h-10 w-10 text-orange-500" />
             </div>
           </div>
 
-          {/* Recent Clients */}
-          <div className="bg-white rounded-lg shadow border overflow-hidden">
-            <div className="px-4 py-3 border-b bg-gray-50">
-              <div className="flex justify-between items-center">
-                <div className="flex items-center gap-2">
-                  <Users className="h-4 w-4 text-orange-600" />
-                  <h2 className="font-bold text-gray-900">Recent Clients</h2>
-                </div>
-                <button className="text-orange-600 hover:text-orange-700 text-xs font-medium">
-                  View All →
-                </button>
+          <div className="bg-white rounded-xl p-6 shadow hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-600">In Progress</p>
+                <p className="text-3xl font-bold text-gray-900">{stats.inProgress}</p>
               </div>
+              <Clock className="h-10 w-10 text-blue-500" />
             </div>
+          </div>
 
-            <div className="divide-y">
-              {recentClients.length > 0 ? (
-                recentClients.map((client) => (
-                  <div key={client.id} className="p-4 hover:bg-gray-50">
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <h3 className="font-semibold text-gray-900 text-sm">{client.name}</h3>
-                        <p className="text-xs text-gray-600">{client.company || 'No company'}</p>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="text-xs text-gray-500">{client.email}</span>
-                        </div>
-                      </div>
-                      <button className="px-2 py-1 text-xs bg-orange-100 text-orange-700 rounded hover:bg-orange-200">
-                        View
-                      </button>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="p-6 text-center">
-                  <Users className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-                  <p className="text-gray-500 text-sm">No clients yet</p>
-                </div>
-              )}
+          <div className="bg-white rounded-xl p-6 shadow hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-600">Completed</p>
+                <p className="text-3xl font-bold text-gray-900">{stats.completed}</p>
+              </div>
+              <CheckCircle className="h-10 w-10 text-green-500" />
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl p-6 shadow hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-600">Pending</p>
+                <p className="text-3xl font-bold text-gray-900">{stats.pending}</p>
+              </div>
+              <Clock className="h-10 w-10 text-yellow-500" />
             </div>
           </div>
         </div>
 
-        {/* Quick Actions */}
-        <div className="mt-6 bg-white rounded-lg shadow border p-4">
-          <h2 className="font-bold text-gray-900 mb-4">Quick Actions</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-            <button className="p-3 border rounded-lg hover:border-orange-500 hover:bg-orange-50 transition-all text-left">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-100 rounded">
-                  <Users className="h-4 w-4 text-blue-600" />
-                </div>
-                <div>
-                  <p className="font-medium text-gray-900 text-sm">Add Client</p>
-                  <p className="text-xs text-gray-600">Register new client</p>
-                </div>
-              </div>
-            </button>
+        <div className="bg-white rounded-xl shadow overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+            <h2 className="text-xl font-bold text-gray-900">My Projects</h2>
+            {projects.length > 0 && (
+              <button
+                onClick={() => router.push('/client/projects/create')}
+                className="text-sm text-orange-600 hover:text-orange-800 font-medium"
+              >
+                Create New Project <ArrowRight className="inline h-4 w-4 ml-1" />
+              </button>
+            )}
+          </div>
 
-            <button className="p-3 border rounded-lg hover:border-green-500 hover:bg-green-50 transition-all text-left">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-green-100 rounded">
-                  <FolderKanban className="h-4 w-4 text-green-600" />
-                </div>
-                <div>
-                  <p className="font-medium text-gray-900 text-sm">Create Project</p>
-                  <p className="text-xs text-gray-600">Start new project</p>
-                </div>
-              </div>
-            </button>
+          <div className="divide-y divide-gray-200">
+            {projects.map((project) => (
+              <div key={project.id} className="p-6 hover:bg-gray-50 transition-colors">
+                <div className="flex justify-between items-start">
+                  <div className="flex-1">
+                    <h3 className="text-lg font-semibold text-gray-900">{project.title}</h3>
+                    <p className="text-gray-600 mt-1 line-clamp-2">{project.description}</p>
+                    
+                    <div className="flex items-center gap-4 mt-3">
+                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${statusColors[project.status]}`}>
+                        {project.status.replace('-', ' ')}
+                      </span>
+                      <span className="text-gray-500 text-sm">
+                        {project.service_type?.replace('-', ' ') || project.category?.replace('-', ' ') || 'General'}
+                      </span>
+                      {project.budget && (
+                        <span className="text-gray-500 text-sm">
+                          Budget: MK{project.budget.toLocaleString()}
+                        </span>
+                      )}
+                      {project.deadline && (
+                        <span className="text-gray-500 text-sm">
+                          Due: {new Date(project.deadline).toLocaleDateString()}
+                        </span>
+                      )}
+                    </div>
+                  </div>
 
-            <button className="p-3 border rounded-lg hover:border-purple-500 hover:bg-purple-50 transition-all text-left">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-purple-100 rounded">
-                  <BarChart3 className="h-4 w-4 text-purple-600" />
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => handleViewProject(project.id)}
+                      className="p-2 text-gray-600 hover:text-orange-600 hover:bg-gray-100 rounded-lg"
+                    >
+                      <Eye className="h-5 w-5" />
+                    </button>
+                    <button 
+                      onClick={() => handleMessageTeam(project.id)}
+                      className="p-2 text-gray-600 hover:text-blue-600 hover:bg-gray-100 rounded-lg"
+                    >
+                      <MessageSquare className="h-5 w-5" />
+                    </button>
+                  </div>
                 </div>
-                <div>
-                  <p className="font-medium text-gray-900 text-sm">View Reports</p>
-                  <p className="text-xs text-gray-600">Analytics & insights</p>
-                </div>
-              </div>
-            </button>
 
-            <button className="p-3 border rounded-lg hover:border-gray-500 hover:bg-gray-50 transition-all text-left">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-gray-100 rounded">
-                  <Mail className="h-4 w-4 text-gray-600" />
-                </div>
-                <div>
-                  <p className="font-medium text-gray-900 text-sm">Send Email</p>
-                  <p className="text-xs text-gray-600">Communicate with clients</p>
+                <div className="flex gap-3 mt-4">
+                  <button 
+                    onClick={() => handleMessageTeam(project.id)}
+                    className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-lg hover:opacity-90"
+                  >
+                    <MessageSquare className="h-4 w-4" />
+                    Message Team
+                  </button>
+                  <button 
+                    onClick={() => handleViewProject(project.id)}
+                    className="flex items-center gap-2 px-4 py-2 text-sm border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                  >
+                    <FileText className="h-4 w-4" />
+                    View Details
+                  </button>
                 </div>
               </div>
-            </button>
+            ))}
+
+            {projects.length === 0 && (
+              <div className="p-12 text-center">
+                <FolderKanban className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No projects yet</h3>
+                <p className="text-gray-600 mb-6">Start your first project to get started with our services.</p>
+                <button
+                  onClick={() => router.push('/client/projects/create')}
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-500 to-yellow-500 text-white rounded-lg hover:opacity-90"
+                >
+                  <Plus className="h-5 w-5" />
+                  Create Your First Project
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </main>

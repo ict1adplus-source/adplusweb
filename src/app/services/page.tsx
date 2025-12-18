@@ -9,7 +9,8 @@ import {
   Target,
   BarChart,
   Zap,
-  Sparkles  // Add this import
+  Sparkles,
+  ArrowRight
 } from 'lucide-react'
 import ServiceCard from '@/components/services/ServiceCard'
 
@@ -163,6 +164,14 @@ export default function ServicesPage() {
               Comprehensive digital marketing solutions designed to transform your business 
               and drive measurable results in today&apos;s competitive landscape.
             </p>
+            <a
+              href="/auth/login?redirect=/client/projects/create"
+              className="inline-flex items-center gap-2 bg-white text-orange-600 px-8 py-4 rounded-full text-lg font-semibold hover:bg-gray-100 transition-colors shadow-lg hover:shadow-xl"
+            >
+              <Sparkles className="w-5 h-5" />
+              <span>Start Your Project</span>
+              <ArrowRight className="w-5 h-5" />
+            </a>
           </div>
         </div>
       </section>
@@ -294,18 +303,27 @@ export default function ServicesPage() {
     <p className="text-xl mb-8 opacity-90 max-w-2xl mx-auto">
       Log in or create an account to start your project with us
     </p>
-    <a
-      href="/auth/login?action=start_project"
-      className="inline-flex items-center gap-2 bg-white text-orange-600 px-8 py-4 rounded-full text-lg font-semibold hover:bg-gray-100 transition-colors shadow-lg hover:shadow-xl"
-    >
-      <Sparkles className="w-5 h-5" />
-      <span>Start Your Project</span>
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
-      </svg>
-    </a>
+    <div className="flex flex-col sm:flex-row gap-4 justify-center">
+      <a
+        href="/auth/login?redirect=/client/projects/create"
+        className="inline-flex items-center justify-center gap-2 bg-white text-orange-600 px-8 py-4 rounded-full text-lg font-semibold hover:bg-gray-100 transition-colors shadow-lg hover:shadow-xl"
+      >
+        <Sparkles className="w-5 h-5" />
+        <span>Start Your Project</span>
+        <ArrowRight className="w-5 h-5" />
+      </a>
+      <a
+        href="/auth/login"
+        className="inline-flex items-center justify-center gap-2 bg-transparent border-2 border-white text-white px-8 py-4 rounded-full text-lg font-semibold hover:bg-white/10 transition-colors"
+      >
+        <span>Login to Dashboard</span>
+        <ArrowRight className="w-5 h-5" />
+      </a>
+    </div>
     <p className="text-white/80 text-sm mt-4">
       Already have an account? <a href="/auth/login" className="font-semibold underline hover:text-white">Login here</a>
+      <span className="mx-2">•</span>
+      New to Ad Plus? <a href="/auth/login#signup" className="font-semibold underline hover:text-white">Create account</a>
     </p>
   </div>
 </section>

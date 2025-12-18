@@ -10,12 +10,13 @@ import {
   Clock, 
   CheckCircle, 
   LogOut,
-  Download,
   Eye,
   User,
   Building,
   Mail,
-  Phone
+  Phone,
+  Plus,
+  ArrowRight
 } from 'lucide-react'
 
 export default function ClientDashboard() {
@@ -43,27 +44,33 @@ export default function ClientDashboard() {
         return
       }
 
-      // Get user info from users table
-      const { data: userData } = await supabase
+      const { data: userData, error: userError } = await supabase
         .from('users')
         .select('*')
         .eq('email', session.user.email)
         .single()
 
+      if (userError) {
+        console.error('User error:', userError)
+        router.push('/auth/login')
+        return
+      }
+
       if (userData) {
         setUserInfo(userData)
       }
 
-      // Load user's projects
-      const { data: projectsData } = await supabase
+      const { data: projectsData, error: projectsError } = await supabase
         .from('projects')
         .select('*')
         .eq('client_id', session.user.id)
         .order('created_at', { ascending: false })
 
+      console.log('Projects loaded:', projectsData)
+      console.log('Projects error:', projectsError)
+
       setProjects(projectsData || [])
 
-      // Calculate stats
       const total = projectsData?.length || 0
       const inProgress = projectsData?.filter(p => p.status === 'in-progress').length || 0
       const completed = projectsData?.filter(p => p.status === 'completed' || p.status === 'delivered').length || 0
@@ -90,17 +97,24 @@ export default function ClientDashboard() {
     'delivered': 'bg-emerald-100 text-emerald-800',
   }
 
+  const handleViewProject = (projectId: string) => {
+    router.push(`/client/projects/${projectId}`)
+  }
+
+  const handleMessageTeam = (projectId: string) => {
+    router.push(`/client/projects/${projectId}?tab=messages`)
+  }
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
       </div>
     )
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
       <header className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex justify-between items-center">
@@ -108,19 +122,27 @@ export default function ClientDashboard() {
               <h1 className="text-2xl font-bold text-gray-900">Client Portal</h1>
               <p className="text-gray-600">Welcome back, {userInfo?.name || 'Client'}</p>
             </div>
-            <button
-              onClick={handleSignOut}
-              className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              <LogOut className="h-4 w-4" />
-              Sign Out
-            </button>
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => router.push('/client/projects/create')}
+                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-500 to-yellow-500 text-white rounded-lg hover:opacity-90 transition-all"
+              >
+                <Plus className="h-5 w-5" />
+                New Project
+              </button>
+              <button
+                onClick={handleSignOut}
+                className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <LogOut className="h-4 w-4" />
+                Sign Out
+              </button>
+            </div>
           </div>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Client Info */}
         <div className="bg-white rounded-xl shadow p-6 mb-8">
           <h2 className="text-xl font-bold text-gray-900 mb-4">Your Information</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -166,19 +188,18 @@ export default function ClientDashboard() {
           </div>
         </div>
 
-        {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-xl p-6 shadow">
+          <div className="bg-white rounded-xl p-6 shadow hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-600">Total Projects</p>
                 <p className="text-3xl font-bold text-gray-900">{stats.total}</p>
               </div>
-              <FolderKanban className="h-10 w-10 text-primary" />
+              <FolderKanban className="h-10 w-10 text-orange-500" />
             </div>
           </div>
 
-          <div className="bg-white rounded-xl p-6 shadow">
+          <div className="bg-white rounded-xl p-6 shadow hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-600">In Progress</p>
@@ -188,7 +209,7 @@ export default function ClientDashboard() {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl p-6 shadow">
+          <div className="bg-white rounded-xl p-6 shadow hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-600">Completed</p>
@@ -198,7 +219,7 @@ export default function ClientDashboard() {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl p-6 shadow">
+          <div className="bg-white rounded-xl p-6 shadow hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-600">Pending</p>
@@ -209,27 +230,39 @@ export default function ClientDashboard() {
           </div>
         </div>
 
-        {/* Projects List */}
         <div className="bg-white rounded-xl shadow overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200">
+          <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
             <h2 className="text-xl font-bold text-gray-900">My Projects</h2>
+            {projects.length > 0 && (
+              <button
+                onClick={() => router.push('/client/projects/create')}
+                className="text-sm text-orange-600 hover:text-orange-800 font-medium"
+              >
+                Create New Project <ArrowRight className="inline h-4 w-4 ml-1" />
+              </button>
+            )}
           </div>
 
           <div className="divide-y divide-gray-200">
             {projects.map((project) => (
               <div key={project.id} className="p-6 hover:bg-gray-50 transition-colors">
                 <div className="flex justify-between items-start">
-                  <div>
+                  <div className="flex-1">
                     <h3 className="text-lg font-semibold text-gray-900">{project.title}</h3>
-                    <p className="text-gray-600 mt-1">{project.description}</p>
+                    <p className="text-gray-600 mt-1 line-clamp-2">{project.description}</p>
                     
                     <div className="flex items-center gap-4 mt-3">
                       <span className={`px-3 py-1 rounded-full text-sm font-medium ${statusColors[project.status]}`}>
                         {project.status.replace('-', ' ')}
                       </span>
                       <span className="text-gray-500 text-sm">
-                        {project.category?.replace('-', ' ') || 'General'}
+                        {project.service_type?.replace('-', ' ') || project.category?.replace('-', ' ') || 'General'}
                       </span>
+                      {project.budget && (
+                        <span className="text-gray-500 text-sm">
+                          Budget: MK{project.budget.toLocaleString()}
+                        </span>
+                      )}
                       {project.deadline && (
                         <span className="text-gray-500 text-sm">
                           Due: {new Date(project.deadline).toLocaleDateString()}
@@ -239,22 +272,33 @@ export default function ClientDashboard() {
                   </div>
 
                   <div className="flex gap-2">
-                    <button className="p-2 text-gray-600 hover:text-primary hover:bg-gray-100 rounded-lg">
+                    <button 
+                      onClick={() => handleViewProject(project.id)}
+                      className="p-2 text-gray-600 hover:text-orange-600 hover:bg-gray-100 rounded-lg"
+                    >
                       <Eye className="h-5 w-5" />
                     </button>
-                    <button className="p-2 text-gray-600 hover:text-primary hover:bg-gray-100 rounded-lg">
+                    <button 
+                      onClick={() => handleMessageTeam(project.id)}
+                      className="p-2 text-gray-600 hover:text-blue-600 hover:bg-gray-100 rounded-lg"
+                    >
                       <MessageSquare className="h-5 w-5" />
                     </button>
                   </div>
                 </div>
 
-                {/* Quick Actions */}
                 <div className="flex gap-3 mt-4">
-                  <button className="flex items-center gap-2 px-4 py-2 text-sm bg-primary text-white rounded-lg hover:bg-opacity-90">
+                  <button 
+                    onClick={() => handleMessageTeam(project.id)}
+                    className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-lg hover:opacity-90"
+                  >
                     <MessageSquare className="h-4 w-4" />
                     Message Team
                   </button>
-                  <button className="flex items-center gap-2 px-4 py-2 text-sm border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">
+                  <button 
+                    onClick={() => handleViewProject(project.id)}
+                    className="flex items-center gap-2 px-4 py-2 text-sm border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                  >
                     <FileText className="h-4 w-4" />
                     View Details
                   </button>
@@ -266,7 +310,14 @@ export default function ClientDashboard() {
               <div className="p-12 text-center">
                 <FolderKanban className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">No projects yet</h3>
-                <p className="text-gray-600">Your projects will appear here once we start working together.</p>
+                <p className="text-gray-600 mb-6">Start your first project to get started with our services.</p>
+                <button
+                  onClick={() => router.push('/client/projects/create')}
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-500 to-yellow-500 text-white rounded-lg hover:opacity-90"
+                >
+                  <Plus className="h-5 w-5" />
+                  Create Your First Project
+                </button>
               </div>
             )}
           </div>

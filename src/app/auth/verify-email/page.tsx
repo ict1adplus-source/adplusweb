@@ -65,8 +65,10 @@ function VerifyEmailContent() {
       const { error } = await verifyEmail(code)
       if (error) throw error
       
-      setSuccess('Email verified successfully! Redirecting to dashboard...')
-      setTimeout(() => router.push('/client/dashboard'), 2000)
+      setSuccess('Email verified successfully! Redirecting to client dashboard...')
+      setTimeout(() => {
+        router.push('/client/dashboard')
+      }, 2000)
     } catch (error: any) {
       setError(error.message || 'Invalid verification code')
     } finally {
@@ -94,11 +96,11 @@ function VerifyEmailContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-malawi-light via-white to-malawi-light flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-yellow-50 flex items-center justify-center p-4">
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-4">
-            <Mail className="h-8 w-8 text-primary" />
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-orange-100 mb-4">
+            <Mail className="h-8 w-8 text-orange-600" />
           </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Verify Your Email</h1>
           <p className="text-gray-600">
@@ -126,7 +128,7 @@ function VerifyEmailContent() {
                     maxLength={1}
                     value={digit}
                     onChange={(e) => handleCodeChange(index, e.target.value)}
-                    className="w-full h-14 text-center text-2xl font-bold border-2 border-gray-300 rounded-lg focus:border-primary focus:ring-2 focus:ring-primary/20 transition-colors"
+                    className="w-full h-14 text-center text-2xl font-bold border-2 border-gray-300 rounded-lg focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 transition-colors"
                     autoFocus={index === 0}
                   />
                 ))}
@@ -149,7 +151,7 @@ function VerifyEmailContent() {
             <button
               type="submit"
               disabled={loading || verificationCode.join('').length !== 6}
-              className="w-full bg-primary text-white py-3 px-4 rounded-lg font-medium hover:bg-opacity-90 transition-all disabled:opacity-50 mb-4"
+              className="w-full bg-gradient-to-r from-orange-500 to-yellow-500 text-white py-3 px-4 rounded-lg font-medium hover:opacity-90 transition-all disabled:opacity-50 mb-4"
             >
               {loading ? 'Verifying...' : 'Verify Email'}
             </button>
@@ -159,7 +161,7 @@ function VerifyEmailContent() {
                 type="button"
                 onClick={handleResendCode}
                 disabled={loading || resendCooldown > 0}
-                className="text-primary hover:text-opacity-80 font-medium disabled:opacity-50"
+                className="text-orange-600 hover:text-orange-800 font-medium disabled:opacity-50"
               >
                 {resendCooldown > 0 ? (
                   <>
@@ -191,7 +193,7 @@ function VerifyEmailContent() {
             Didn't receive the email? Check your spam folder or{' '}
             <button
               onClick={() => router.push('/contact')}
-              className="text-primary hover:underline"
+              className="text-orange-600 hover:underline"
             >
               contact support
             </button>
@@ -205,16 +207,16 @@ function VerifyEmailContent() {
 // Loading fallback component
 function VerifyEmailLoading() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-malawi-light via-white to-malawi-light flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-yellow-50 flex items-center justify-center p-4">
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-4">
-            <Mail className="h-8 w-8 text-primary" />
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-orange-100 mb-4">
+            <Mail className="h-8 w-8 text-orange-600" />
           </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Verify Your Email</h1>
           <div className="bg-white rounded-2xl shadow-xl p-8">
             <div className="flex justify-center items-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
             </div>
           </div>
         </div>

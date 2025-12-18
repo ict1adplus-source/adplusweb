@@ -2,14 +2,50 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { supabase, ADMIN_EMAILS } from '@/contexts/AuthContext'
-import { Mail, Lock, User, Building, Phone, Shield, LogOut } from 'lucide-react'
+import { Mail, Lock, User, Building, Phone, Shield, LogOut, CheckCircle } from 'lucide-react'
 
 export default function LoginPage() {
   const [isLogin, setIsLogin] = useState(true)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
   const [checkingAuth, setCheckingAuth] = useState(true)
+  const router = useRouter()
+
+  // Handle email verification from URL
+  useEffect(() => {
+    const handleEmailVerification = async () => {
+      const searchParams = new URLSearchParams(window.location.search)
+      const token = searchParams.get('token')
+      const type = searchParams.get('type')
+      const redirect = searchParams.get('redirect')
+
+      if (token && type === 'email') {
+        try {
+          setLoading(true)
+          const { error } = await supabase.auth.verifyOtp({
+            token_hash: token,
+            type: 'email'
+          })
+
+          if (error) throw error
+
+          setSuccess('Email verified successfully! You can now login.')
+          
+          // Clear token from URL
+          window.history.replaceState({}, document.title, window.location.pathname)
+        } catch (error: any) {
+          setError(error.message || 'Failed to verify email')
+        } finally {
+          setLoading(false)
+        }
+      }
+    }
+
+    handleEmailVerification()
+  }, [])
 
   // Check auth immediately on page load
   useEffect(() => {
@@ -48,6 +84,7 @@ export default function LoginPage() {
     e.preventDefault()
     setLoading(true)
     setError('')
+    setSuccess('')
 
     const formData = new FormData(e.currentTarget)
     const email = formData.get('email') as string
@@ -68,8 +105,13 @@ export default function LoginPage() {
         
         console.log('Login successful:', data.user?.email)
         
+        // Check if email is verified
+        if (!data.user?.email_confirmed_at) {
+          throw new Error('Please verify your email first. Check your inbox.')
+        }
+        
         // Wait for session to be established
-        await new Promise(resolve => setTimeout(resolve, 1000))
+        await new Promise(resolve => setTimeout(resolve, 500))
         
         // Force redirect
         const isAdmin = ADMIN_EMAILS.includes(email.toLowerCase())
@@ -103,15 +145,20 @@ export default function LoginPage() {
               company: userData.company,
               phone: userData.phone,
             },
-            emailRedirectTo: `${window.location.origin}/auth/callback`,
+            emailRedirectTo: `${window.location.origin}/auth/login?success=verified`,
           }
         })
         
         if (error) throw error
         
         if (data?.user) {
-          alert('Account created successfully! Please check your email to verify your account.')
+          setSuccess('Account created successfully! Please check your email to verify your account. You will be redirected to verify your email.')
           setIsLogin(true)
+          
+          // Redirect to verification page
+          setTimeout(() => {
+            router.push(`/auth/verify-email?email=${encodeURIComponent(email)}`)
+          }, 3000)
         }
       }
     } catch (error: any) {
@@ -125,15 +172,15 @@ export default function LoginPage() {
   // Show loading while checking auth
   if (checkingAuth) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-malawi-light via-white to-malawi-light">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-orange-50 via-white to-yellow-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mb-4"></div>
         <p className="text-gray-600">Checking authentication...</p>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-malawi-light via-white to-malawi-light flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-yellow-50 flex items-center justify-center p-4">
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
@@ -158,7 +205,7 @@ export default function LoginPage() {
                       name="name"
                       type="text"
                       required
-                      className="pl-10 w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                      className="pl-10 w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                       placeholder="John Doe"
                     />
                   </div>
@@ -174,7 +221,7 @@ export default function LoginPage() {
                       name="company"
                       type="text"
                       required
-                      className="pl-10 w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                      className="pl-10 w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                       placeholder="Your Company Ltd"
                     />
                   </div>
@@ -190,7 +237,7 @@ export default function LoginPage() {
                       name="phone"
                       type="tel"
                       required
-                      className="pl-10 w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                      className="pl-10 w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                       placeholder="+265 XXX XXX XXX"
                     />
                   </div>
@@ -208,7 +255,7 @@ export default function LoginPage() {
                   name="email"
                   type="email"
                   required
-                  className="pl-10 w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                  className="pl-10 w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                   placeholder="you@company.com"
                 />
               </div>
@@ -225,7 +272,7 @@ export default function LoginPage() {
                   type="password"
                   required
                   minLength={6}
-                  className="pl-10 w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                  className="pl-10 w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                   placeholder="••••••••"
                 />
               </div>
@@ -237,10 +284,17 @@ export default function LoginPage() {
               </div>
             )}
 
+            {success && (
+              <div className="p-3 bg-green-50 border border-green-200 text-green-600 rounded-lg">
+                <CheckCircle className="inline h-4 w-4 mr-2" />
+                {success}
+              </div>
+            )}
+
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-primary text-white py-3 px-4 rounded-lg font-medium hover:bg-opacity-90 transition-all disabled:opacity-50"
+              className="w-full bg-gradient-to-r from-orange-500 to-yellow-500 text-white py-3 px-4 rounded-lg font-medium hover:opacity-90 transition-all disabled:opacity-50"
             >
               {loading ? 'Please wait...' : (isLogin ? 'Sign In' : 'Create Account')}
             </button>
@@ -251,8 +305,9 @@ export default function LoginPage() {
               onClick={() => {
                 setIsLogin(!isLogin)
                 setError('')
+                setSuccess('')
               }}
-              className="text-primary hover:text-opacity-80 font-medium"
+              className="text-orange-600 hover:text-orange-800 font-medium"
             >
               {isLogin ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
             </button>
@@ -265,7 +320,7 @@ export default function LoginPage() {
                 <div>
                   <p className="text-sm font-medium text-blue-900">Admin Access</p>
                   <p className="text-xs text-blue-700 mt-1">
-                    Use admin credentials for admin dashboard access.
+                    Use pre-configured admin emails for admin dashboard access.
                   </p>
                 </div>
               </div>
@@ -275,11 +330,11 @@ export default function LoginPage() {
           <div className="mt-8 pt-6 border-t border-gray-200">
             <p className="text-center text-gray-600 text-sm">
               By continuing, you agree to our{' '}
-              <Link href="/terms" className="text-primary hover:underline">
+              <Link href="/terms" className="text-orange-600 hover:underline">
                 Terms of Service
               </Link>{' '}
               and{' '}
-              <Link href="/privacy" className="text-primary hover:underline">
+              <Link href="/privacy" className="text-orange-600 hover:underline">
                 Privacy Policy
               </Link>
             </p>
