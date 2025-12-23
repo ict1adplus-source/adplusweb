@@ -54,12 +54,6 @@ interface AuthContextType {
   forgotPassword: (email: string) => Promise<any>
   resetPassword: (token: string, newPassword: string) => Promise<any>
   updatePassword: (newPassword: string) => Promise<any>
-  
-  // Custom verification functions
-  sendVerificationCode: (email: string) => Promise<any>
-  verifyEmailCode: (email: string, code: string) => Promise<any>
-  confirmEmailVerified: (email: string) => Promise<any>
-  checkVerificationStatus: (email: string) => Promise<any>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -115,323 +109,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe()
   }, [])
 
-  // Generate random 6-digit code
-  const generateVerificationCode = () => {
-    return Math.floor(100000 + Math.random() * 900000).toString()
-  }
-
-  // Send verification code to email
-  const sendVerificationCode = async (email: string) => {
-    try {
-      // Generate a 6-digit code
-      const code = generateVerificationCode()
-      
-      // Set expiry to 10 minutes from now
-      const expiresAt = new Date()
-      expiresAt.setMinutes(expiresAt.getMinutes() + 10)
-
-      // First, invalidate any existing codes for this email
-      await supabaseAdmin
-        .from('verification_codes')
-        .update({ used: true })
-        .eq('email', email.toLowerCase())
-
-      // Store the new code in the database
-      const { data, error } = await supabaseAdmin
-        .from('verification_codes')
-        .insert([
-          {
-            email: email.toLowerCase(),
-            code: code,
-            expires_at: expiresAt.toISOString(),
-            used: false,
-            created_at: new Date().toISOString()
-          }
-        ])
-        .select()
-        .single()
-
-      if (error) {
-        console.error('Failed to store verification code:', error)
-        throw error
-      }
-
-      // Log the code (for development - remove in production)
-      console.log('=========================================')
-      console.log('📧 VERIFICATION CODE FOR:', email)
-      console.log('🔢 CODE:', code)
-      console.log('⏰ Expires at:', expiresAt.toLocaleTimeString())
-      console.log('=========================================')
-
-      // Send email via API route
-      try {
-        const response = await fetch('/api/send-verification-email', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ 
-            email: email.toLowerCase(), 
-            code: code 
-          }),
-        })
-
-        const result = await response.json()
-        
-        if (!response.ok) {
-          console.warn('Email API failed, but code was generated:', result.error)
-          // Continue anyway - code is logged in console for development
-        }
-      } catch (emailError) {
-        console.warn('Failed to call email API:', emailError)
-        // Continue anyway - code is logged in console for development
-      }
-
-      return { 
-        data: { 
-          message: 'Verification code sent successfully',
-          expiresAt: expiresAt
-        }, 
-        error: null 
-      }
-    } catch (error: any) {
-      console.error('Send verification code error:', error)
-      return { 
-        data: null, 
-        error: error.message || 'Failed to send verification code' 
-      }
-    }
-  }
-
-  // Verify the 6-digit code
-  const verifyEmailCode = async (email: string, code: string) => {
-    try {
-      // Clean the code (remove any spaces)
-      const cleanCode = code.replace(/\s/g, '')
-      
-      if (cleanCode.length !== 6) {
-        throw new Error('Code must be 6 digits')
-      }
-
-      // Check if code exists and is valid
-      const { data, error } = await supabaseAdmin
-        .from('verification_codes')
-        .select('*')
-        .eq('email', email.toLowerCase())
-        .eq('code', cleanCode)
-        .eq('used', false)
-        .gt('expires_at', new Date().toISOString())
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single()
-
-      if (error || !data) {
-        console.log('Code verification failed for:', email, 'Code:', cleanCode)
-        console.log('Error:', error)
-        throw new Error('Invalid or expired verification code')
-      }
-
-      console.log('Code verified successfully for:', email)
-
-      // Mark code as used
-      await supabaseAdmin
-        .from('verification_codes')
-        .update({ used: true })
-        .eq('id', data.id)
-
-      return { 
-        data: { 
-          message: 'Email verified successfully',
-          email: email,
-          verifiedAt: new Date().toISOString()
-        }, 
-        error: null 
-      }
-    } catch (error: any) {
-      console.error('Verify email code error:', error)
-      return { 
-        data: null, 
-        error: error.message || 'Failed to verify code' 
-      }
-    }
-  }
-
-  // Mark email as verified in user metadata
-  const confirmEmailVerified = async (email: string) => {
-    try {
-      // First, update the user's profile in the users table
-      const { data: profileUpdate, error: profileError } = await supabaseAdmin
-        .from('users')
-        .update({ 
-          email_verified: true,
-          updated_at: new Date().toISOString()
-        })
-        .eq('email', email.toLowerCase())
-        .select()
-        .single()
-
-      if (profileError) {
-        console.warn('Could not update user profile:', profileError)
-      }
-
-      // Get user from auth to update metadata
-      const { data: authData, error: authError } = await supabaseAdmin.auth.admin.listUsers()
-      
-      if (authError) {
-        console.error('Error listing users:', authError)
-        // Still return success if we updated the profile
-        if (!profileError) {
-          return { 
-            data: { 
-              message: 'Email confirmed in profile',
-              email: email
-            }, 
-            error: null 
-          }
-        }
-        throw authError
-      }
-      
-      const user = authData.users.find(u => u.email?.toLowerCase() === email.toLowerCase())
-      
-      if (!user) {
-        console.warn('User not found in auth, but profile was updated')
-        return { 
-          data: { 
-            message: 'Email confirmed in profile',
-            email: email
-          }, 
-          error: null 
-        }
-      }
-
-      // Update user metadata to mark email as verified
-      const { data: updatedUser, error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
-        user.id,
-        { 
-          user_metadata: { 
-            ...user.user_metadata, 
-            email_verified: true,
-            verified_at: new Date().toISOString()
-          }
-        }
-      )
-
-      if (updateError) {
-        console.warn('Could not update user metadata:', updateError)
-        // Still return success if we updated the profile
-        if (!profileError) {
-          return { 
-            data: { 
-              message: 'Email confirmed in profile',
-              email: email
-            }, 
-            error: null 
-          }
-        }
-        throw updateError
-      }
-
-      console.log('Email confirmed for user:', email)
-
-      return { 
-        data: { 
-          message: 'Email confirmed successfully',
-          email: email,
-          user: updatedUser
-        }, 
-        error: null 
-      }
-    } catch (error: any) {
-      console.error('Confirm email verified error:', error)
-      return { 
-        data: null, 
-        error: error.message || 'Failed to confirm email verification' 
-      }
-    }
-  }
-
-  // Check if email is already verified
-  const checkVerificationStatus = async (email: string) => {
-    try {
-      // Check users table first
-      const { data: profile, error: profileError } = await supabaseAdmin
-        .from('users')
-        .select('email_verified, updated_at')
-        .eq('email', email.toLowerCase())
-        .single()
-
-      if (!profileError && profile?.email_verified) {
-        return { 
-          data: { 
-            verified: true,
-            verified_in: 'profile',
-            email: email
-          }, 
-          error: null 
-        }
-      }
-
-      // Check auth metadata
-      const { data: authData, error: authError } = await supabaseAdmin.auth.admin.listUsers()
-      
-      if (authError) {
-        return { 
-          data: { 
-            verified: false,
-            email: email
-          }, 
-          error: null 
-        }
-      }
-      
-      const user = authData.users.find(u => u.email?.toLowerCase() === email.toLowerCase())
-      
-      if (user?.user_metadata?.email_verified) {
-        return { 
-          data: { 
-            verified: true,
-            verified_in: 'auth_metadata',
-            email: email
-          }, 
-          error: null 
-        }
-      }
-
-      // Check Supabase native email confirmation
-      if (user?.email_confirmed_at) {
-        return { 
-          data: { 
-            verified: true,
-            verified_in: 'supabase_native',
-            email: email
-          }, 
-          error: null 
-        }
-      }
-
-      return { 
-        data: { 
-          verified: false,
-          email: email
-        }, 
-        error: null 
-      }
-    } catch (error: any) {
-      console.error('Check verification status error:', error)
-      return { 
-        data: null, 
-        error: error.message || 'Failed to check verification status' 
-      }
-    }
-  }
-
   const signIn = async (email: string, password: string) => {
     console.log('Signing in:', email)
     
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
-        email,
+        email: email.toLowerCase(),
         password,
       })
       
@@ -442,16 +125,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       console.log('Sign in successful:', data.user?.email)
       
-      // Check verification status
-      const { data: verificationStatus } = await checkVerificationStatus(email)
-      
-      if (!verificationStatus?.verified) {
-        // Send new verification code
-        await sendVerificationCode(email)
+      // Check if email is verified
+      if (!data.user?.email_confirmed_at && !data.user?.user_metadata?.email_verified) {
+        // Send verification email
+        await resendVerification(email)
         
         return { 
           data: null, 
-          error: new Error('Please verify your email first. A new verification code has been sent to your email.') 
+          error: new Error('Please verify your email first. A new verification email has been sent.') 
         }
       }
       
@@ -466,13 +147,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             company: 'Ad Plus Digital',
             phone: data.user.user_metadata?.phone || '+265000000000',
             role: 'admin',
-            email_verified: true,
             created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
           })
           console.log('Admin profile updated')
         } catch (error) {
-          console.warn('Could not update admin profile:', error)
+          console.warn('Could not update admin profile (might be RLS issue):', error)
         }
       }
       
@@ -493,7 +172,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
       
-      // Create user account
+      // Use your actual Vercel domain
+      const siteUrl = 'https://adplusweb.vercel.app'
+      
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: email.toLowerCase(),
         password,
@@ -503,24 +184,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             company: userData.company,
             phone: userData.phone,
             role: 'client',
-            email_verified: false,
           },
+          // This is the key - redirect to login page after verification
+          emailRedirectTo: `${siteUrl}/auth/login?verified=true&email=${encodeURIComponent(email.toLowerCase())}`,
         }
       })
 
       if (authError) {
-        console.error('Sign up auth error:', authError)
+        console.error('Sign up error:', authError)
         return { data: null, error: authError }
       }
 
-      console.log('User created:', authData.user?.email)
+      console.log('Sign up successful:', authData.user?.email)
 
-      // Send verification code
-      if (authData.user) {
-        await sendVerificationCode(email)
-      }
-
-      // Create user profile
+      // Try to create user profile
       if (authData.user) {
         try {
           const adminClient = supabaseAdmin || supabase
@@ -532,22 +209,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               company: userData.company,
               phone: userData.phone,
               role: 'client',
-              email_verified: false,
               created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
             }
           ])
           console.log('User profile created')
         } catch (profileError) {
-          console.warn('Could not create profile:', profileError)
-          // Don't fail signup if profile creation fails
+          console.warn('Could not create profile (might be RLS issue):', profileError)
         }
       }
 
       return { 
         data: { 
           ...authData, 
-          message: 'Account created! Please check your email for the verification code.' 
+          message: 'Account created! Please check your email to verify your account.' 
         }, 
         error: null 
       }
@@ -559,8 +233,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const forgotPassword = async (email: string) => {
     try {
-      const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth/reset-password`,
+      const { data, error } = await supabase.auth.resetPasswordForEmail(email.toLowerCase(), {
+        redirectTo: 'https://adplusweb.vercel.app/auth/reset-password',
       })
       
       if (error) {
@@ -629,9 +303,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const resendVerification = async (email: string) => {
     const { data, error } = await supabase.auth.resend({
       type: 'signup',
-      email,
+      email: email.toLowerCase(),
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo: 'https://adplusweb.vercel.app/auth/login?verified=true',
       }
     })
     return { data, error }
@@ -657,11 +331,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     forgotPassword,
     resetPassword,
     updatePassword,
-    // Custom verification functions
-    sendVerificationCode,
-    verifyEmailCode,
-    confirmEmailVerified,
-    checkVerificationStatus,
   }
 
   return (

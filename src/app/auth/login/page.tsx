@@ -14,37 +14,26 @@ export default function LoginPage() {
   const [checkingAuth, setCheckingAuth] = useState(true)
   const router = useRouter()
 
-  // Handle email verification from URL
+  // Handle email verification success from URL
   useEffect(() => {
-    const handleEmailVerification = async () => {
+    const handleVerificationSuccess = () => {
       const searchParams = new URLSearchParams(window.location.search)
-      const token = searchParams.get('token')
-      const type = searchParams.get('type')
-      const redirect = searchParams.get('redirect')
-
-      if (token && type === 'email') {
-        try {
-          setLoading(true)
-          const { error } = await supabase.auth.verifyOtp({
-            token_hash: token,
-            type: 'email'
-          })
-
-          if (error) throw error
-
+      const verified = searchParams.get('verified')
+      const email = searchParams.get('email')
+      
+      if (verified === 'true') {
+        if (email) {
+          setSuccess(`Email ${email} verified successfully! You can now login.`)
+        } else {
           setSuccess('Email verified successfully! You can now login.')
-          
-          // Clear token from URL
-          window.history.replaceState({}, document.title, window.location.pathname)
-        } catch (error: any) {
-          setError(error.message || 'Failed to verify email')
-        } finally {
-          setLoading(false)
         }
+        
+        // Clear success message from URL
+        window.history.replaceState({}, document.title, window.location.pathname)
       }
     }
 
-    handleEmailVerification()
+    handleVerificationSuccess()
   }, [])
 
   // Check auth immediately on page load
@@ -94,7 +83,7 @@ export default function LoginPage() {
       if (isLogin) {
         // Direct Supabase login
         const { data, error } = await supabase.auth.signInWithPassword({
-          email,
+          email: email.toLowerCase(),
           password,
         })
         
@@ -107,7 +96,7 @@ export default function LoginPage() {
         
         // Check if email is verified
         if (!data.user?.email_confirmed_at) {
-          throw new Error('Please verify your email first. Check your inbox.')
+          throw new Error('Please verify your email first. Check your inbox for the verification link.')
         }
         
         // Wait for session to be established
@@ -137,7 +126,7 @@ export default function LoginPage() {
         }
         
         const { data, error } = await supabase.auth.signUp({
-          email,
+          email: email.toLowerCase(),
           password,
           options: {
             data: {
@@ -145,20 +134,19 @@ export default function LoginPage() {
               company: userData.company,
               phone: userData.phone,
             },
-            emailRedirectTo: `${window.location.origin}/auth/login?success=verified`,
+            // Redirect to login page after verification
+            emailRedirectTo: 'https://adplusweb.vercel.app/auth/login?verified=true',
           }
         })
         
         if (error) throw error
         
         if (data?.user) {
-          setSuccess('Account created successfully! Please check your email to verify your account. You will be redirected to verify your email.')
+          setSuccess('Account created successfully! Please check your email and click the verification link to activate your account.')
           setIsLogin(true)
           
-          // Redirect to verification page
-          setTimeout(() => {
-            router.push(`/auth/verify-email?email=${encodeURIComponent(email)}`)
-          }, 3000)
+          // Clear form
+          e.currentTarget.reset()
         }
       }
     } catch (error: any) {
