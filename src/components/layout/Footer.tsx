@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import Image from 'next/image'
 import { Facebook, Instagram, Twitter, Mail, Phone, MapPin } from 'lucide-react'
 
 export default function Footer() {
@@ -18,8 +19,14 @@ export default function Footer() {
           {/* Company Info */}
           <div className="lg:col-span-2">
             <div className="flex items-center space-x-3 mb-6">
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-gradient-to-br from-orange-500 to-yellow-500">
-                <span className="text-xl font-bold">AD+</span>
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg overflow-hidden">
+                <Image 
+                  src="/logo.png" 
+                  alt="Ad Plus Digital Logo" 
+                  width={48} 
+                  height={48} 
+                  className="object-contain"
+                />
               </div>
               <div>
                 <h2 className="text-2xl font-bold font-poppins">AD PLUS</h2>

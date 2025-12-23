@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { supabase, ADMIN_EMAILS } from '@/contexts/AuthContext'
-import { Mail, Lock, User, Building, Phone, Shield, LogOut, CheckCircle } from 'lucide-react'
+import { Mail, Lock, User, Building, Phone, Shield, CheckCircle } from 'lucide-react'
 
 export default function LoginPage() {
   const [isLogin, setIsLogin] = useState(true)
@@ -262,9 +262,19 @@ export default function LoginPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Password
-              </label>
+              <div className="flex justify-between items-center mb-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  Password
+                </label>
+                {isLogin && (
+                  <Link 
+                    href="/auth/forgot-password" 
+                    className="text-sm text-orange-600 hover:text-orange-800 hover:underline"
+                  >
+                    Forgot password?
+                  </Link>
+                )}
+              </div>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
                 <input
@@ -307,7 +317,7 @@ export default function LoginPage() {
                 setError('')
                 setSuccess('')
               }}
-              className="text-orange-600 hover:text-orange-800 font-medium"
+              className="text-orange-600 hover:text-orange-800 font-medium hover:underline"
             >
               {isLogin ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
             </button>
@@ -342,7 +352,7 @@ export default function LoginPage() {
         </div>
 
         <div className="mt-6 text-center">
-          <Link href="/" className="text-gray-600 hover:text-gray-900">
+          <Link href="/" className="text-gray-600 hover:text-gray-900 hover:underline">
             ← Back to homepage
           </Link>
         </div>

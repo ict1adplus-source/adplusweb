@@ -51,6 +51,9 @@ interface AuthContextType {
   signOut: () => Promise<void>
   verifyEmail: (token: string) => Promise<any>
   resendVerification: (email: string) => Promise<any>
+  forgotPassword: (email: string) => Promise<any>
+  resetPassword: (token: string, newPassword: string) => Promise<any>
+  updatePassword: (newPassword: string) => Promise<any>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -122,10 +125,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       console.log('Sign in successful:', data.user?.email)
       
-      // Update admin profile if needed (try with admin client, but don't fail if it doesn't work)
+      // Update admin profile if needed
       if (data.user && isAdminEmail(email)) {
         try {
-          // Try to get the admin client (might be the same as regular client)
           const adminClient = supabaseAdmin || supabase
           await adminClient.from('users').upsert({
             id: data.user.id,
@@ -177,7 +179,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { data: null, error: authError }
       }
 
-      // Try to create user profile (might fail due to RLS, but that's OK)
+      // Try to create user profile
       if (authData.user) {
         try {
           const adminClient = supabaseAdmin || supabase
@@ -195,11 +197,71 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.log('User profile created')
         } catch (profileError) {
           console.warn('Could not create profile (might be RLS issue):', profileError)
-          // Don't fail signup if profile creation fails
         }
       }
 
       return { data: authData, error: null }
+    } catch (error: any) {
+      return { data: null, error }
+    }
+  }
+
+  const forgotPassword = async (email: string) => {
+    try {
+      const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth/reset-password`,
+      })
+      
+      if (error) {
+        console.error('Forgot password error:', error)
+        return { data: null, error }
+      }
+      
+      return { data: { message: 'Password reset instructions sent to your email' }, error: null }
+    } catch (error: any) {
+      console.error('Forgot password catch error:', error)
+      return { data: null, error }
+    }
+  }
+
+  const resetPassword = async (token: string, newPassword: string) => {
+    try {
+      // First verify the token
+      const { error: verifyError } = await supabase.auth.verifyOtp({
+        token_hash: token,
+        type: 'recovery'
+      })
+      
+      if (verifyError) {
+        return { data: null, error: verifyError }
+      }
+      
+      // Then update the password
+      const { data, error } = await supabase.auth.updateUser({
+        password: newPassword,
+      })
+      
+      if (error) {
+        return { data: null, error }
+      }
+      
+      return { data: { message: 'Password reset successfully' }, error: null }
+    } catch (error: any) {
+      return { data: null, error }
+    }
+  }
+
+  const updatePassword = async (newPassword: string) => {
+    try {
+      const { data, error } = await supabase.auth.updateUser({
+        password: newPassword,
+      })
+      
+      if (error) {
+        return { data: null, error }
+      }
+      
+      return { data: { message: 'Password updated successfully' }, error: null }
     } catch (error: any) {
       return { data: null, error }
     }
@@ -241,6 +303,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signOut,
     verifyEmail,
     resendVerification,
+    forgotPassword,
+    resetPassword,
+    updatePassword,
   }
 
   return (

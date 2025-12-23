@@ -1,10 +1,10 @@
 import { 
   Palette, 
   Globe, 
-  Users, 
   Layout, 
   Video, 
   Share2,
+  Printer,
   CheckCircle,
   Target,
   BarChart,
@@ -27,8 +27,6 @@ export default function ServicesPage() {
         "T-shirt Design",
         "Product Design"
       ],
-      quote: "A brand is a result, it is a customer's gut feeling about a product, service or company.",
-      quoteAuthor: "Marty Neumeier",
       color: "from-blue-500 to-cyan-500"
     },
     {
@@ -44,8 +42,6 @@ export default function ServicesPage() {
         "Newspaper Ads Design",
         "Info-graphics"
       ],
-      quote: "Creativity is seeing what others see and thinking what no one else ever thought.",
-      quoteAuthor: "Albert Einstein",
       color: "from-purple-500 to-pink-500"
     },
     {
@@ -60,8 +56,6 @@ export default function ServicesPage() {
         "Website Management",
         "Content Creation"
       ],
-      quote: "Great Web Design without functionality is like a sports car without an engine.",
-      quoteAuthor: "Paul Cookson",
       color: "from-green-500 to-emerald-500"
     },
     {
@@ -77,8 +71,6 @@ export default function ServicesPage() {
         "Catalogue Design",
         "Business Profile"
       ],
-      quote: "Words have meaning. Type has spirit.",
-      quoteAuthor: "Paula Scher",
       color: "from-orange-500 to-red-500"
     },
     {
@@ -93,8 +85,6 @@ export default function ServicesPage() {
         "Community Management",
         "Analytics & Reporting"
       ],
-      quote: "Social media puts the 'public' into public relations and the 'market' into marketing.",
-      quoteAuthor: "Chris Brogan",
       color: "from-pink-500 to-rose-500"
     },
     {
@@ -109,9 +99,21 @@ export default function ServicesPage() {
         "Video Editing",
         "Visual Effects"
       ],
-      quote: "Stopping advertising to save money is like stopping your watch to save time.",
-      quoteAuthor: "Henry Ford",
       color: "from-indigo-500 to-blue-500"
+    },
+    {
+      icon: <Printer className="w-8 h-8" />,
+      title: "Printing Services",
+      description: "High-quality printing services for all your business materials and branding needs. We offer professional printing with fast turnaround times and excellent quality.",
+      features: [
+        "A3/A4 Color Printing",
+        "Black & White Copy Services",
+        "Business Cards",
+        "Marketing Materials",
+        "Flyers & Brochures",
+        "Large Format Printing"
+      ],
+      color: "from-amber-500 to-orange-500"
     }
   ];
 
@@ -161,7 +163,7 @@ export default function ServicesPage() {
               WHAT WE <span className="text-white">DO</span>
             </h1>
             <p className="text-xl md:text-2xl mb-8 opacity-90">
-              Comprehensive digital marketing solutions designed to transform your business 
+              Comprehensive digital marketing and printing solutions designed to transform your business 
               and drive measurable results in today&apos;s competitive landscape.
             </p>
             <a
@@ -294,39 +296,39 @@ export default function ServicesPage() {
         </div>
       </section>
 
-     {/* CTA Section */}
-<section className="py-20 bg-gradient-to-r from-orange-500 to-yellow-500 text-white">
-  <div className="container mx-auto px-4 text-center">
-    <h2 className="text-3xl md:text-4xl font-bold mb-6 font-poppins">
-      Ready to Transform Your Digital Presence?
-    </h2>
-    <p className="text-xl mb-8 opacity-90 max-w-2xl mx-auto">
-      Log in or create an account to start your project with us
-    </p>
-    <div className="flex flex-col sm:flex-row gap-4 justify-center">
-      <a
-        href="/auth/login?redirect=/client/projects/create"
-        className="inline-flex items-center justify-center gap-2 bg-white text-orange-600 px-8 py-4 rounded-full text-lg font-semibold hover:bg-gray-100 transition-colors shadow-lg hover:shadow-xl"
-      >
-        <Sparkles className="w-5 h-5" />
-        <span>Start Your Project</span>
-        <ArrowRight className="w-5 h-5" />
-      </a>
-      <a
-        href="/auth/login"
-        className="inline-flex items-center justify-center gap-2 bg-transparent border-2 border-white text-white px-8 py-4 rounded-full text-lg font-semibold hover:bg-white/10 transition-colors"
-      >
-        <span>Login to Dashboard</span>
-        <ArrowRight className="w-5 h-5" />
-      </a>
-    </div>
-    <p className="text-white/80 text-sm mt-4">
-      Already have an account? <a href="/auth/login" className="font-semibold underline hover:text-white">Login here</a>
-      <span className="mx-2">•</span>
-      New to Ad Plus? <a href="/auth/login#signup" className="font-semibold underline hover:text-white">Create account</a>
-    </p>
-  </div>
-</section>
+      {/* CTA Section */}
+      <section className="py-20 bg-gradient-to-r from-orange-500 to-yellow-500 text-white">
+        <div className="container mx-auto px-4 text-center">
+          <h2 className="text-3xl md:text-4xl font-bold mb-6 font-poppins">
+            Ready to Transform Your Digital Presence?
+          </h2>
+          <p className="text-xl mb-8 opacity-90 max-w-2xl mx-auto">
+            Log in or create an account to start your project with us
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <a
+              href="/auth/login?redirect=/client/projects/create"
+              className="inline-flex items-center justify-center gap-2 bg-white text-orange-600 px-8 py-4 rounded-full text-lg font-semibold hover:bg-gray-100 transition-colors shadow-lg hover:shadow-xl"
+            >
+              <Sparkles className="w-5 h-5" />
+              <span>Start Your Project</span>
+              <ArrowRight className="w-5 h-5" />
+            </a>
+            <a
+              href="/auth/login"
+              className="inline-flex items-center justify-center gap-2 bg-transparent border-2 border-white text-white px-8 py-4 rounded-full text-lg font-semibold hover:bg-white/10 transition-colors"
+            >
+              <span>Login to Dashboard</span>
+              <ArrowRight className="w-5 h-5" />
+            </a>
+          </div>
+          <p className="text-white/80 text-sm mt-4">
+            Already have an account? <a href="/auth/login" className="font-semibold underline hover:text-white">Login here</a>
+            <span className="mx-2">•</span>
+            New to Ad Plus? <a href="/auth/login#signup" className="font-semibold underline hover:text-white">Create account</a>
+          </p>
+        </div>
+      </section>
     </div>
   )
 }

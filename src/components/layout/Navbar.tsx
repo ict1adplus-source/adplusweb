@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import {
   NavigationMenu,
@@ -82,10 +83,17 @@ export default function Navbar() {
     <header className="sticky top-0 z-50 w-full border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60 shadow-sm">
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
-          {/* Logo */}
-          <Link href="/" className="flex items-center space-x-2 group">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-orange-500 to-yellow-500 group-hover:from-orange-600 group-hover:to-yellow-600 transition-all duration-300">
-              <span className="text-lg font-bold text-white">AD+</span>
+          {/* Logo - Removed orange background */}
+          <Link href="/" className="flex items-center space-x-3 group">
+            <div className="flex h-10 w-10 items-center justify-center transition-all duration-300 overflow-hidden">
+              <Image 
+                src="/logo.png" 
+                alt="Ad Plus Digital Logo" 
+                width={40} 
+                height={40} 
+                className="object-contain group-hover:scale-105 transition-transform"
+                priority
+              />
             </div>
             <div className="flex flex-col">
               <h1 className="text-xl font-bold text-gray-900 font-poppins">AD PLUS</h1>
