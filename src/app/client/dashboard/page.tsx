@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/contexts/AuthContext'
 import { 
@@ -31,11 +31,7 @@ export default function ClientDashboard() {
     pending: 0,
   })
 
-  useEffect(() => {
-    checkAuthAndLoadData()
-  }, [])
-
-  const checkAuthAndLoadData = async () => {
+  const checkAuthAndLoadData = useCallback(async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession()
       
@@ -82,7 +78,31 @@ export default function ClientDashboard() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [router])
+
+  useEffect(() => {
+    let mounted = true
+    
+    if (mounted) {
+      checkAuthAndLoadData()
+    }
+
+    // Set up auth state change listener
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (!session) {
+          router.push('/auth/login')
+        } else if (event === 'SIGNED_IN' && mounted) {
+          await checkAuthAndLoadData()
+        }
+      }
+    )
+
+    return () => {
+      mounted = false
+      authListener?.subscription.unsubscribe()
+    }
+  }, [checkAuthAndLoadData, router])
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()
