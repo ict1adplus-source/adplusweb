@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/contexts/AuthContext'
 import { 
@@ -16,7 +16,9 @@ import {
   Mail,
   Phone,
   Plus,
-  ArrowRight
+  ArrowRight,
+  RefreshCw,
+  AlertCircle
 } from 'lucide-react'
 
 export default function ClientDashboard() {
@@ -30,16 +32,40 @@ export default function ClientDashboard() {
     completed: 0,
     pending: 0,
   })
+  const [error, setError] = useState<string | null>(null)
+  const mountedRef = useRef(true)
 
   const checkAuthAndLoadData = useCallback(async () => {
+    if (!mountedRef.current) return
+    
     try {
-      const { data: { session } } = await supabase.auth.getSession()
+      console.log('Starting auth check...')
+      setError(null)
+      
+      // Check for session first
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+      
+      if (sessionError) {
+        console.error('Session error:', sessionError)
+        throw new Error('Session error: ' + sessionError.message)
+      }
       
       if (!session) {
+        console.log('No session found, redirecting to login')
         router.push('/auth/login')
         return
       }
 
+      console.log('Session found for user:', session.user.email)
+
+      // Check if email is verified
+      if (!session.user.email_confirmed_at) {
+        console.log('Email not verified, redirecting to verification page')
+        window.location.href = `/auth/verify-email?email=${encodeURIComponent(session.user.email || '')}`
+        return
+      }
+
+      // Load user info
       const { data: userData, error: userError } = await supabase
         .from('users')
         .select('*')
@@ -47,66 +73,103 @@ export default function ClientDashboard() {
         .single()
 
       if (userError) {
-        console.error('User error:', userError)
-        router.push('/auth/login')
-        return
-      }
-
-      if (userData) {
+        console.error('User data error:', userError)
+        // Continue even if user data fails - use auth user as fallback
+        setUserInfo({
+          name: session.user.user_metadata?.name || 'Client',
+          email: session.user.email,
+          company: session.user.user_metadata?.company || 'Not set',
+          phone: session.user.user_metadata?.phone || 'Not set'
+        })
+      } else if (userData) {
         setUserInfo(userData)
       }
 
+      // Load projects
       const { data: projectsData, error: projectsError } = await supabase
         .from('projects')
         .select('*')
         .eq('client_id', session.user.id)
         .order('created_at', { ascending: false })
 
-      console.log('Projects loaded:', projectsData)
-      console.log('Projects error:', projectsError)
+      if (projectsError) {
+        console.error('Projects error:', projectsError)
+        // Don't throw, just show empty projects
+        setProjects([])
+      } else {
+        console.log('Projects loaded:', projectsData?.length || 0)
+        setProjects(projectsData || [])
+      }
 
-      setProjects(projectsData || [])
-
+      // Calculate stats
       const total = projectsData?.length || 0
       const inProgress = projectsData?.filter(p => p.status === 'in-progress').length || 0
       const completed = projectsData?.filter(p => p.status === 'completed' || p.status === 'delivered').length || 0
       const pending = projectsData?.filter(p => p.status === 'pending').length || 0
 
       setStats({ total, inProgress, completed, pending })
-    } catch (error) {
+      
+    } catch (error: any) {
       console.error('Error loading dashboard:', error)
+      setError(error.message || 'Failed to load dashboard data')
+      
+      // If auth error, redirect to login
+      if (error.message.includes('session') || error.message.includes('auth')) {
+        router.push('/auth/login')
+      }
     } finally {
-      setLoading(false)
+      if (mountedRef.current) {
+        setLoading(false)
+      }
     }
   }, [router])
 
   useEffect(() => {
-    let mounted = true
+    mountedRef.current = true
     
-    if (mounted) {
-      checkAuthAndLoadData()
-    }
+    // Initial load
+    checkAuthAndLoadData()
 
-    // Set up auth state change listener
+    // Set up auth state change listener with debounce
+    let timeoutId: NodeJS.Timeout
+    
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        if (!session) {
+        console.log('Auth state changed:', event)
+        
+        if (!session && mountedRef.current) {
           router.push('/auth/login')
-        } else if (event === 'SIGNED_IN' && mounted) {
-          await checkAuthAndLoadData()
+        } else if (event === 'SIGNED_IN' && mountedRef.current) {
+          // Debounce to prevent multiple calls
+          clearTimeout(timeoutId)
+          timeoutId = setTimeout(() => {
+            checkAuthAndLoadData()
+          }, 500)
         }
       }
     )
 
     return () => {
-      mounted = false
+      mountedRef.current = false
+      clearTimeout(timeoutId)
       authListener?.subscription.unsubscribe()
     }
   }, [checkAuthAndLoadData, router])
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut()
-    router.push('/')
+    try {
+      await supabase.auth.signOut()
+      // Use window.location for complete sign out
+      window.location.href = '/'
+    } catch (error) {
+      console.error('Sign out error:', error)
+    }
+  }
+
+  const handleRetry = () => {
+    setLoading(true)
+    setError(null)
+    checkAuthAndLoadData()
   }
 
   const statusColors: Record<string, string> = {
@@ -125,14 +188,47 @@ export default function ClientDashboard() {
     router.push(`/client/projects/${projectId}?tab=messages`)
   }
 
-  if (loading) {
+  // Error state
+  if (error && !loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="max-w-md w-full">
+          <div className="bg-white rounded-xl shadow p-8 text-center">
+            <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+            <h2 className="text-xl font-bold text-gray-900 mb-2">Unable to Load Dashboard</h2>
+            <p className="text-gray-600 mb-6">{error}</p>
+            <div className="flex gap-3 justify-center">
+              <button
+                onClick={handleRetry}
+                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-500 to-yellow-500 text-white rounded-lg hover:opacity-90"
+              >
+                <RefreshCw className="h-4 w-4" />
+                Try Again
+              </button>
+              <button
+                onClick={handleSignOut}
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+              >
+                Sign Out
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     )
   }
 
+  // Loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mb-4"></div>
+        <p className="text-gray-600">Loading your dashboard...</p>
+      </div>
+    )
+  }
+
+  // Main render
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white shadow">
@@ -163,6 +259,7 @@ export default function ClientDashboard() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* User Info Section */}
         <div className="bg-white rounded-xl shadow p-6 mb-8">
           <h2 className="text-xl font-bold text-gray-900 mb-4">Your Information</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -208,6 +305,7 @@ export default function ClientDashboard() {
           </div>
         </div>
 
+        {/* Stats Section */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <div className="bg-white rounded-xl p-6 shadow hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
@@ -250,6 +348,7 @@ export default function ClientDashboard() {
           </div>
         </div>
 
+        {/* Projects Section */}
         <div className="bg-white rounded-xl shadow overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
             <h2 className="text-xl font-bold text-gray-900">My Projects</h2>
