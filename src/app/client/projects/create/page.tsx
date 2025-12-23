@@ -1,358 +1,476 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
 import { supabase } from '@/contexts/AuthContext'
-import { Upload, X, FileText, Calendar, DollarSign, AlertCircle, CheckCircle } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { 
+  ArrowLeft, 
+  Save, 
+  User, 
+  Mail, 
+  Building, 
+  Calendar,
+  DollarSign,
+  FileText,
+  AlertCircle,
+  Paperclip
+} from 'lucide-react'
 
 export default function CreateProjectPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
-  const [uploading, setUploading] = useState(false)
-  const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
-  const [previewUrls, setPreviewUrls] = useState<string[]>([])
+  const [userData, setUserData] = useState<any>(null)
+  
+  // Form fields
+  const [title, setTitle] = useState('')
+  const [description, setDescription] = useState('')
+  const [serviceType, setServiceType] = useState('website') // REQUIRED
+  const [clientName, setClientName] = useState('') // REQUIRED
+  const [clientEmail, setClientEmail] = useState('') // REQUIRED
+  const [clientCompany, setClientCompany] = useState('')
+  const [category, setCategory] = useState('general')
+  const [priority, setPriority] = useState('medium')
+  const [deadline, setDeadline] = useState('')
+  const [budget, setBudget] = useState('')
+  const [requirements, setRequirements] = useState<string[]>([''])
+  const [attachments, setAttachments] = useState<string[]>([''])
+  const [additionalNotes, setAdditionalNotes] = useState('')
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files
-    if (!files) return
-
-    const newFiles = Array.from(files)
-    const totalFiles = uploadedFiles.length + newFiles.length
-    
-    if (totalFiles > 10) {
-      setError('Maximum 10 files allowed')
-      return
-    }
-
-    setUploadedFiles(prev => [...prev, ...newFiles])
-    
-    // Create preview URLs
-    newFiles.forEach(file => {
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        setPreviewUrls(prev => [...prev, reader.result as string])
+  // Fetch user data on component mount
+  useEffect(() => {
+    const fetchUserData = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        setUserData(user)
+        // Pre-fill client info from user metadata
+        setClientName(user.user_metadata?.name || '')
+        setClientEmail(user.email || '')
+        setClientCompany(user.user_metadata?.company || '')
       }
-      reader.readAsDataURL(file)
-    })
+    }
+    fetchUserData()
+  }, [])
+
+  // Service types based on your categories
+  const SERVICE_TYPES = [
+    'website',
+    'marketing',
+    'design',
+    'seo',
+    'social',
+    'content',
+    'video',
+    'branding',
+    'ecommerce',
+    'mobile',
+    'consulting',
+    'other'
+  ]
+
+  const handleAddRequirement = () => {
+    setRequirements([...requirements, ''])
   }
 
-  const removeFile = (index: number) => {
-    setUploadedFiles(prev => prev.filter((_, i) => i !== index))
-    setPreviewUrls(prev => prev.filter((_, i) => i !== index))
+  const handleRequirementChange = (index: number, value: string) => {
+    const newRequirements = [...requirements]
+    newRequirements[index] = value
+    setRequirements(newRequirements)
   }
 
-  const uploadFiles = async (projectId: string) => {
-    const uploadPromises = uploadedFiles.map(async (file, index) => {
-      const fileExt = file.name.split('.').pop()
-      const fileName = `${projectId}/${Date.now()}_${index}.${fileExt}`
-      
-      const { error: uploadError } = await supabase.storage
-        .from('project-files')
-        .upload(fileName, file)
-      
-      if (uploadError) throw uploadError
-      
-      return fileName
-    })
-
-    return await Promise.all(uploadPromises)
+  const handleRemoveRequirement = (index: number) => {
+    if (requirements.length > 1) {
+      const newRequirements = requirements.filter((_, i) => i !== index)
+      setRequirements(newRequirements)
+    }
   }
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError('')
-    setSuccess('')
 
     try {
-      const formData = new FormData(e.currentTarget)
-      const title = formData.get('title') as string
-      const description = formData.get('description') as string
-      const serviceType = formData.get('serviceType') as string
-      const deadline = formData.get('deadline') as string
-      const budget = formData.get('budget') as string
-      const additionalNotes = formData.get('additionalNotes') as string
-
       // Get current user
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) {
-        router.push('/auth/login')
-        return
+      const { data: { user } } = await supabase.auth.getUser()
+      
+      if (!user) {
+        throw new Error('You must be logged in to create a project')
       }
 
-      // Create project
-      const { data: project, error: projectError } = await supabase
+      // Validate required fields
+      if (!title.trim()) throw new Error('Project title is required')
+      if (!description.trim()) throw new Error('Description is required')
+      if (!clientName.trim()) throw new Error('Client name is required')
+      if (!clientEmail.trim()) throw new Error('Client email is required')
+      if (!serviceType.trim()) throw new Error('Service type is required')
+
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      if (!emailRegex.test(clientEmail)) {
+        throw new Error('Please enter a valid email address')
+      }
+
+      // Filter out empty requirements
+      const filteredRequirements = requirements.filter(req => req.trim() !== '')
+
+      // Prepare project data
+      const projectData = {
+        // Required fields (NOT NULL)
+        title: title.trim(),
+        description: description.trim(),
+        client_email: clientEmail.trim(),
+        client_name: clientName.trim(),
+        service_type: serviceType,
+        
+        // Foreign key
+        client_id: user.id,
+        
+        // Optional fields with defaults
+        client_company: clientCompany.trim() || null,
+        category: category,
+        priority: priority,
+        status: 'pending',
+        
+        // Optional fields
+        deadline: deadline ? new Date(deadline).toISOString() : null,
+        budget: budget ? parseFloat(budget) : null,
+        requirements: filteredRequirements.length > 0 ? filteredRequirements : null,
+        attachments: attachments.filter(att => att.trim() !== ''),
+        additional_notes: additionalNotes.trim() || null,
+        
+        // System fields
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }
+
+      console.log('Submitting project data:', projectData)
+
+      // Insert project
+      const { data, error: insertError } = await supabase
         .from('projects')
-        .insert([
-          {
-            title,
-            description,
-            service_type: serviceType,
-            deadline,
-            budget: budget ? parseInt(budget) : null,
-            additional_notes: additionalNotes,
-            client_id: session.user.id,
-            client_email: session.user.email,
-            status: 'pending',
-            created_at: new Date().toISOString(),
-          }
-        ])
+        .insert([projectData])
         .select()
         .single()
 
-      if (projectError) throw projectError
-
-      // Upload files if any
-      if (uploadedFiles.length > 0) {
-        setUploading(true)
-        const filePaths = await uploadFiles(project.id)
-        
-        // Save file references to database
-        await supabase
-          .from('project_files')
-          .insert(
-            filePaths.map(path => ({
-              project_id: project.id,
-              file_path: path,
-              uploaded_by: session.user.id,
-              uploaded_at: new Date().toISOString(),
-            }))
-          )
+      if (insertError) {
+        console.error('Insert error details:', insertError)
+        throw insertError
       }
 
-      setSuccess('Project created successfully! Redirecting to dashboard...')
+      // Success - redirect to projects list
+      router.push('/client/projects')
       
-      // Create initial milestone
-      await supabase
-        .from('project_milestones')
-        .insert([
-          {
-            project_id: project.id,
-            title: 'Project Initiated',
-            description: 'Project has been created and is awaiting review',
-            status: 'completed',
-            created_at: new Date().toISOString(),
-          }
-        ])
-
-      setTimeout(() => {
-        router.push('/client/dashboard')
-      }, 2000)
-
     } catch (error: any) {
+      console.error('Full error:', error)
       setError(error.message || 'Failed to create project')
     } finally {
       setLoading(false)
-      setUploading(false)
     }
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-4xl mx-auto px-4">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-yellow-50 p-4 md:p-6">
+      <div className="max-w-4xl mx-auto">
+        {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Start New Project</h1>
-          <p className="text-gray-600 mt-2">Fill in the details below to create your project</p>
+          <button
+            onClick={() => router.back()}
+            className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-4"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Projects
+          </button>
+          <h1 className="text-3xl font-bold text-gray-900">Create New Project</h1>
+          <p className="text-gray-600 mt-2">Fill in all required details for your new project request</p>
         </div>
 
-        <div className="bg-white rounded-xl shadow-lg p-6">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Project Title *
-                </label>
-                <input
-                  name="title"
-                  type="text"
-                  required
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  placeholder="e.g., Company Logo Design"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Service Type *
-                </label>
-                <select
-                  name="serviceType"
-                  required
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                >
-                  <option value="">Select a service</option>
-                  <option value="branding">Branding</option>
-                  <option value="graphic-design">Graphic Design</option>
-                  <option value="web-design">Web & App Design</option>
-                  <option value="layout-design">Layout Design</option>
-                  <option value="social-media">Social Media Marketing</option>
-                  <option value="motion-graphics">Motion Graphics</option>
-                  <option value="printing">Printing Services</option>
-                </select>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Project Description *
-              </label>
-              <textarea
-                name="description"
-                required
-                rows={4}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                placeholder="Describe your project requirements in detail..."
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Deadline (Optional)
-                </label>
-                <div className="relative">
-                  <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                  <input
-                    name="deadline"
-                    type="date"
-                    className="pl-10 w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  />
+        <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8">
+          <form onSubmit={handleSubmit} className="space-y-8">
+            
+            {/* Client Information Section */}
+            <div className="border-b pb-6">
+              <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+                <User className="h-5 w-5 mr-2 text-orange-500" />
+                Client Information
+              </h2>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Client Name */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Client Name *
+                  </label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                    <input
+                      type="text"
+                      value={clientName}
+                      onChange={(e) => setClientName(e.target.value)}
+                      required
+                      className="pl-10 w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                      placeholder="John Doe"
+                    />
+                  </div>
                 </div>
-              </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Budget in MK (Optional)
-                </label>
-                <div className="relative">
-                  <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                  <input
-                    name="budget"
-                    type="number"
-                    className="pl-10 w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                    placeholder="e.g., 50000"
-                  />
+                {/* Client Email */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Client Email *
+                  </label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                    <input
+                      type="email"
+                      value={clientEmail}
+                      onChange={(e) => setClientEmail(e.target.value)}
+                      required
+                      className="pl-10 w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                      placeholder="client@example.com"
+                    />
+                  </div>
+                </div>
+
+                {/* Client Company */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Company
+                  </label>
+                  <div className="relative">
+                    <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                    <input
+                      type="text"
+                      value={clientCompany}
+                      onChange={(e) => setClientCompany(e.target.value)}
+                      className="pl-10 w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                      placeholder="Company Name"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Upload Reference Files (Optional)
-              </label>
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                <input
-                  type="file"
-                  multiple
-                  accept="image/*,.pdf,.doc,.docx"
-                  onChange={handleFileUpload}
-                  className="hidden"
-                  id="file-upload"
-                />
-                <label htmlFor="file-upload" className="cursor-pointer">
-                  <Upload className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-                  <p className="text-gray-600">Click to upload files or drag and drop</p>
-                  <p className="text-sm text-gray-500 mt-1">Images, PDF, Word docs (max 10 files)</p>
-                </label>
-              </div>
+            {/* Project Details Section */}
+            <div className="border-b pb-6">
+              <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+                <FileText className="h-5 w-5 mr-2 text-orange-500" />
+                Project Details
+              </h2>
+              
+              <div className="space-y-6">
+                {/* Project Title */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Project Title *
+                  </label>
+                  <input
+                    type="text"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    required
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    placeholder="e.g., Website Redesign, Marketing Campaign"
+                  />
+                </div>
 
-              {uploadedFiles.length > 0 && (
-                <div className="mt-4">
-                  <p className="text-sm font-medium text-gray-700 mb-2">
-                    Uploaded Files ({uploadedFiles.length})
-                  </p>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    {uploadedFiles.map((file, index) => (
-                      <div key={index} className="relative group">
-                        <div className="border rounded-lg p-3 bg-gray-50">
-                          {file.type.startsWith('image/') ? (
-                            <img
-                              src={previewUrls[index]}
-                              alt={file.name}
-                              className="w-full h-24 object-cover rounded mb-2"
-                            />
-                          ) : (
-                            <FileText className="h-12 w-12 text-gray-400 mx-auto mb-2" />
-                          )}
-                          <p className="text-xs text-gray-600 truncate">{file.name}</p>
-                          <p className="text-xs text-gray-500">
-                            {(file.size / 1024).toFixed(1)} KB
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => removeFile(index)}
-                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
-                      </div>
+                {/* Service Type - REQUIRED */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Service Type *
+                  </label>
+                  <select
+                    value={serviceType}
+                    onChange={(e) => setServiceType(e.target.value)}
+                    required
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  >
+                    <option value="">Select Service Type</option>
+                    {SERVICE_TYPES.map((type) => (
+                      <option key={type} value={type}>
+                        {type.charAt(0).toUpperCase() + type.slice(1).replace('_', ' ')}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Category */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Category
+                  </label>
+                  <select
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  >
+                    <option value="general">General</option>
+                    <option value="new">New Project</option>
+                    <option value="enhancement">Enhancement</option>
+                    <option value="maintenance">Maintenance</option>
+                    <option value="urgent">Urgent</option>
+                  </select>
+                </div>
+
+                {/* Priority */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Priority
+                  </label>
+                  <div className="flex space-x-4">
+                    {['low', 'medium', 'high', 'urgent'].map((level) => (
+                      <label key={level} className="flex items-center">
+                        <input
+                          type="radio"
+                          name="priority"
+                          value={level}
+                          checked={priority === level}
+                          onChange={(e) => setPriority(e.target.value)}
+                          className="h-4 w-4 text-orange-500 focus:ring-orange-500"
+                        />
+                        <span className="ml-2 capitalize">{level}</span>
+                      </label>
                     ))}
                   </div>
                 </div>
-              )}
+
+                {/* Description */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Project Description *
+                  </label>
+                  <textarea
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    required
+                    rows={5}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    placeholder="Describe your project in detail. Include goals, target audience, specific requirements..."
+                  />
+                </div>
+              </div>
             </div>
 
+            {/* Additional Details Section */}
+            <div className="border-b pb-6">
+              <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+                <AlertCircle className="h-5 w-5 mr-2 text-orange-500" />
+                Additional Details
+              </h2>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Deadline */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Deadline
+                  </label>
+                  <div className="relative">
+                    <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                    <input
+                      type="date"
+                      value={deadline}
+                      onChange={(e) => setDeadline(e.target.value)}
+                      className="pl-10 w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    />
+                  </div>
+                </div>
+
+                {/* Budget */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Budget ($)
+                  </label>
+                  <div className="relative">
+                    <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                    <input
+                      type="number"
+                      value={budget}
+                      onChange={(e) => setBudget(e.target.value)}
+                      min="0"
+                      step="0.01"
+                      className="pl-10 w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                      placeholder="0.00"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Requirements Section */}
+            <div className="border-b pb-6">
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">Requirements</h2>
+              <div className="space-y-4">
+                {requirements.map((req, index) => (
+                  <div key={index} className="flex items-center space-x-2">
+                    <input
+                      type="text"
+                      value={req}
+                      onChange={(e) => handleRequirementChange(index, e.target.value)}
+                      className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                      placeholder={`Requirement ${index + 1}`}
+                    />
+                    {requirements.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveRequirement(index)}
+                        className="px-3 py-2 text-red-600 hover:text-red-800"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={handleAddRequirement}
+                  className="text-orange-600 hover:text-orange-800 font-medium"
+                >
+                  + Add Another Requirement
+                </button>
+              </div>
+            </div>
+
+            {/* Additional Notes */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Additional Notes (Optional)
-              </label>
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">Additional Notes</h2>
               <textarea
-                name="additionalNotes"
-                rows={3}
+                value={additionalNotes}
+                onChange={(e) => setAdditionalNotes(e.target.value)}
+                rows={4}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                placeholder="Any additional information or special requirements..."
+                placeholder="Any additional information, special instructions, or notes..."
               />
             </div>
 
+            {/* Error Display */}
             {error && (
-              <div className="p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
-                <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
-                <p className="text-red-600">{error}</p>
+              <div className="p-4 bg-red-50 border border-red-200 text-red-600 rounded-lg">
+                <strong>Error:</strong> {error}
               </div>
             )}
 
-            {success && (
-              <div className="p-4 bg-green-50 border border-green-200 rounded-lg flex items-start gap-3">
-                <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
-                <p className="text-green-600">{success}</p>
-              </div>
-            )}
-
-            <div className="flex gap-4 pt-4">
-              <button
-                type="button"
-                onClick={() => router.push('/client/dashboard')}
-                className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                Cancel
-              </button>
+            {/* Submit Button */}
+            <div className="pt-6 border-t">
               <button
                 type="submit"
-                disabled={loading || uploading}
-                className="flex-1 bg-gradient-to-r from-orange-500 to-yellow-500 text-white py-3 px-6 rounded-lg font-medium hover:opacity-90 transition-all disabled:opacity-50"
+                disabled={loading}
+                className="w-full flex items-center justify-center bg-gradient-to-r from-orange-500 to-yellow-500 text-white py-3 px-4 rounded-lg font-medium hover:opacity-90 transition-all disabled:opacity-50"
               >
-                {loading || uploading ? 'Creating Project...' : 'Create Project'}
+                {loading ? (
+                  'Creating Project...'
+                ) : (
+                  <>
+                    <Save className="h-5 w-5 mr-2" />
+                    Create Project
+                  </>
+                )}
               </button>
-            </div>
-          </form>
-        </div>
-
-        <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <div className="flex items-start gap-3">
-            <AlertCircle className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="text-sm font-medium text-blue-900">What happens next?</p>
-              <p className="text-sm text-blue-700 mt-1">
-                1. Our team will review your project within 24 hours<br />
-                2. We'll assign a dedicated project manager<br />
-                3. You'll receive updates on milestones and can communicate directly with the team<br />
-                4. Uploaded files are securely stored and accessible to the admin team
+              
+              <p className="mt-4 text-sm text-gray-500 text-center">
+                Fields marked with * are required
               </p>
             </div>
-          </div>
+          </form>
         </div>
       </div>
     </div>
