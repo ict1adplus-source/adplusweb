@@ -33,34 +33,41 @@ export default function ClientDashboard() {
     pending: 0,
   })
   const [error, setError] = useState<string | null>(null)
+  const [debugLogs, setDebugLogs] = useState<string[]>([])
   const mountedRef = useRef(true)
+  const initialLoadDone = useRef(false)
+
+  const addDebugLog = (message: string) => {
+    console.log(`[Dashboard Debug] ${message}`)
+    setDebugLogs(prev => [...prev.slice(-5), `${new Date().toISOString().split('T')[1].split('.')[0]}: ${message}`])
+  }
 
   const checkAuthAndLoadData = useCallback(async () => {
-    if (!mountedRef.current) return
+    if (!mountedRef.current || initialLoadDone.current) return
     
     try {
-      console.log('Starting auth check...')
+      addDebugLog('Starting auth check...')
       setError(null)
       
       // Check for session first
       const { data: { session }, error: sessionError } = await supabase.auth.getSession()
       
       if (sessionError) {
-        console.error('Session error:', sessionError)
+        addDebugLog(`Session error: ${sessionError.message}`)
         throw new Error('Session error: ' + sessionError.message)
       }
       
       if (!session) {
-        console.log('No session found, redirecting to login')
+        addDebugLog('No session found, redirecting to login')
         router.push('/auth/login')
         return
       }
 
-      console.log('Session found for user:', session.user.email)
+      addDebugLog(`Session found for user: ${session.user.email}`)
 
       // Check if email is verified
       if (!session.user.email_confirmed_at) {
-        console.log('Email not verified, redirecting to verification page')
+        addDebugLog('Email not verified, redirecting to verification page')
         window.location.href = `/auth/verify-email?email=${encodeURIComponent(session.user.email || '')}`
         return
       }
@@ -73,7 +80,7 @@ export default function ClientDashboard() {
         .single()
 
       if (userError) {
-        console.error('User data error:', userError)
+        addDebugLog(`User data error: ${userError.message}`)
         // Continue even if user data fails - use auth user as fallback
         setUserInfo({
           name: session.user.user_metadata?.name || 'Client',
@@ -82,6 +89,7 @@ export default function ClientDashboard() {
           phone: session.user.user_metadata?.phone || 'Not set'
         })
       } else if (userData) {
+        addDebugLog(`User data loaded for: ${userData.name}`)
         setUserInfo(userData)
       }
 
@@ -93,11 +101,11 @@ export default function ClientDashboard() {
         .order('created_at', { ascending: false })
 
       if (projectsError) {
-        console.error('Projects error:', projectsError)
+        addDebugLog(`Projects error: ${projectsError.message}`)
         // Don't throw, just show empty projects
         setProjects([])
       } else {
-        console.log('Projects loaded:', projectsData?.length || 0)
+        addDebugLog(`Projects loaded: ${projectsData?.length || 0}`)
         setProjects(projectsData || [])
       }
 
@@ -109,8 +117,10 @@ export default function ClientDashboard() {
 
       setStats({ total, inProgress, completed, pending })
       
+      initialLoadDone.current = true
+      
     } catch (error: any) {
-      console.error('Error loading dashboard:', error)
+      addDebugLog(`Error: ${error.message}`)
       setError(error.message || 'Failed to load dashboard data')
       
       // If auth error, redirect to login
@@ -126,32 +136,26 @@ export default function ClientDashboard() {
 
   useEffect(() => {
     mountedRef.current = true
+    initialLoadDone.current = false
     
     // Initial load
     checkAuthAndLoadData()
 
-    // Set up auth state change listener with debounce
-    let timeoutId: NodeJS.Timeout
-    
+    // Set up auth state change listener
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('Auth state changed:', event)
+        addDebugLog(`Auth state changed: ${event}`)
         
         if (!session && mountedRef.current) {
+          addDebugLog('No session in auth listener, redirecting to login')
           router.push('/auth/login')
-        } else if (event === 'SIGNED_IN' && mountedRef.current) {
-          // Debounce to prevent multiple calls
-          clearTimeout(timeoutId)
-          timeoutId = setTimeout(() => {
-            checkAuthAndLoadData()
-          }, 500)
         }
+        // Only reload data on SIGNED_IN event, not on every auth change
       }
     )
 
     return () => {
       mountedRef.current = false
-      clearTimeout(timeoutId)
       authListener?.subscription.unsubscribe()
     }
   }, [checkAuthAndLoadData, router])
@@ -159,7 +163,7 @@ export default function ClientDashboard() {
   const handleSignOut = async () => {
     try {
       await supabase.auth.signOut()
-      // Use window.location for complete sign out
+      // Force full page reload to clear any state
       window.location.href = '/'
     } catch (error) {
       console.error('Sign out error:', error)
@@ -167,6 +171,7 @@ export default function ClientDashboard() {
   }
 
   const handleRetry = () => {
+    initialLoadDone.current = false
     setLoading(true)
     setError(null)
     checkAuthAndLoadData()
@@ -193,10 +198,23 @@ export default function ClientDashboard() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="max-w-md w-full">
-          <div className="bg-white rounded-xl shadow p-8 text-center">
+          <div className="bg-white rounded-xl shadow p-8">
             <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-            <h2 className="text-xl font-bold text-gray-900 mb-2">Unable to Load Dashboard</h2>
-            <p className="text-gray-600 mb-6">{error}</p>
+            <h2 className="text-xl font-bold text-gray-900 mb-2 text-center">Unable to Load Dashboard</h2>
+            <p className="text-gray-600 mb-6 text-center">{error}</p>
+            
+            {/* Debug logs */}
+            {debugLogs.length > 0 && (
+              <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+                <p className="text-sm font-medium text-gray-700 mb-2">Debug Logs:</p>
+                <div className="text-xs text-gray-600 space-y-1">
+                  {debugLogs.map((log, index) => (
+                    <div key={index} className="font-mono">{log}</div>
+                  ))}
+                </div>
+              </div>
+            )}
+            
             <div className="flex gap-3 justify-center">
               <button
                 onClick={handleRetry}
@@ -231,6 +249,16 @@ export default function ClientDashboard() {
   // Main render
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Debug button (remove in production) */}
+      <div className="fixed bottom-4 right-4 z-50">
+        <button 
+          onClick={() => console.log({ userInfo, projects, stats, debugLogs })}
+          className="px-3 py-2 text-xs bg-gray-800 text-white rounded opacity-50 hover:opacity-100"
+        >
+          Debug
+        </button>
+      </div>
+
       <header className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex justify-between items-center">
