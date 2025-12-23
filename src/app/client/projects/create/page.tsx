@@ -27,7 +27,11 @@ import {
   FolderOpen,
   PlusCircle,
   CheckCircle,
-  AlertTriangle
+  AlertTriangle,
+  Palette,
+  Megaphone,
+  Printer,
+  Users
 } from 'lucide-react'
 
 export default function CreateProjectPage() {
@@ -38,15 +42,15 @@ export default function CreateProjectPage() {
   const [userData, setUserData] = useState<any>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   
-  // Form fields matching your table structure
+  // Form fields - UPDATED TO MATCH TABLE CONSTRAINTS
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
-  const [serviceType, setServiceType] = useState('website') // REQUIRED
-  const [clientName, setClientName] = useState('') // REQUIRED
-  const [clientEmail, setClientEmail] = useState('') // REQUIRED
+  const [serviceType, setServiceType] = useState('web-design') // UPDATED: Must match allowed categories
+  const [clientName, setClientName] = useState('')
+  const [clientEmail, setClientEmail] = useState('')
   const [clientCompany, setClientCompany] = useState('')
-  const [category, setCategory] = useState('general')
-  const [priority, setPriority] = useState('medium') // Default: 'medium'
+  const [category, setCategory] = useState('web-design') // UPDATED: Must be one of allowed values
+  const [priority, setPriority] = useState('medium')
   const [deadline, setDeadline] = useState('')
   const [budget, setBudget] = useState('')
   const [requirements, setRequirements] = useState<string[]>([''])
@@ -72,20 +76,51 @@ export default function CreateProjectPage() {
     fetchUserData()
   }, [])
 
-  // Service types with icons and descriptions
+  // UPDATED SERVICE TYPES - MUST MATCH TABLE CONSTRAINTS
+  const ALLOWED_CATEGORIES = [
+    { value: 'web-design', label: 'Web Design', icon: <Sparkles className="h-4 w-4" />, description: 'Website design and development' },
+    { value: 'graphic-design', label: 'Graphic Design', icon: <Palette className="h-4 w-4" />, description: 'Logos, banners, and visual design' },
+    { value: 'digital-marketing', label: 'Digital Marketing', icon: <Megaphone className="h-4 w-4" />, description: 'SEO, social media, online advertising' },
+    { value: 'printing', label: 'Printing Services', icon: <Printer className="h-4 w-4" />, description: 'Business cards, flyers, brochures' },
+    { value: 'branding', label: 'Branding', icon: <Award className="h-4 w-4" />, description: 'Brand identity and strategy' },
+    { value: 'consultation', label: 'Consultation', icon: <Users className="h-4 w-4" />, description: 'Digital strategy consulting' }
+  ]
+
+  // Service types that map to categories
   const SERVICE_TYPES = [
-    { value: 'website', label: 'Website Development', icon: <Sparkles className="h-4 w-4" />, description: 'Custom websites & web applications' },
-    { value: 'marketing', label: 'Digital Marketing', icon: <BarChart3 className="h-4 w-4" />, description: 'SEO, PPC, social media campaigns' },
-    { value: 'design', label: 'UI/UX Design', icon: <Target className="h-4 w-4" />, description: 'User interface & experience design' },
-    { value: 'seo', label: 'SEO Optimization', icon: <Award className="h-4 w-4" />, description: 'Search engine optimization' },
-    { value: 'social', label: 'Social Media', icon: <Layers className="h-4 w-4" />, description: 'Social media management & strategy' },
-    { value: 'content', label: 'Content Creation', icon: <FileText className="h-4 w-4" />, description: 'Blog posts, articles, copywriting' },
-    { value: 'video', label: 'Video Production', icon: <Tag className="h-4 w-4" />, description: 'Video editing & production' },
-    { value: 'branding', label: 'Branding', icon: <FolderOpen className="h-4 w-4" />, description: 'Logo design & brand identity' },
-    { value: 'ecommerce', label: 'E-commerce', icon: <Sparkles className="h-4 w-4" />, description: 'Online store development' },
-    { value: 'mobile', label: 'Mobile Apps', icon: <PlusCircle className="h-4 w-4" />, description: 'iOS & Android applications' },
-    { value: 'consulting', label: 'Consulting', icon: <Target className="h-4 w-4" />, description: 'Digital strategy consulting' },
-    { value: 'other', label: 'Other Services', icon: <AlertCircle className="h-4 w-4" />, description: 'Custom service request' }
+    // Web Design services
+    { value: 'website-development', label: 'Website Development', category: 'web-design' },
+    { value: 'ecommerce-site', label: 'E-commerce Website', category: 'web-design' },
+    { value: 'web-redesign', label: 'Website Redesign', category: 'web-design' },
+    { value: 'mobile-responsive', label: 'Mobile Responsive Design', category: 'web-design' },
+    
+    // Graphic Design services
+    { value: 'logo-design', label: 'Logo Design', category: 'graphic-design' },
+    { value: 'brochure-design', label: 'Brochure Design', category: 'graphic-design' },
+    { value: 'business-card', label: 'Business Cards', category: 'graphic-design' },
+    { value: 'social-media-graphics', label: 'Social Media Graphics', category: 'graphic-design' },
+    
+    // Digital Marketing services
+    { value: 'seo-optimization', label: 'SEO Optimization', category: 'digital-marketing' },
+    { value: 'social-media-management', label: 'Social Media Management', category: 'digital-marketing' },
+    { value: 'google-ads', label: 'Google Ads', category: 'digital-marketing' },
+    { value: 'content-marketing', label: 'Content Marketing', category: 'digital-marketing' },
+    
+    // Printing services
+    { value: 'business-cards-print', label: 'Business Cards Printing', category: 'printing' },
+    { value: 'flyers-print', label: 'Flyers Printing', category: 'printing' },
+    { value: 'brochures-print', label: 'Brochures Printing', category: 'printing' },
+    { value: 'banners-print', label: 'Banners Printing', category: 'printing' },
+    
+    // Branding services
+    { value: 'brand-identity', label: 'Brand Identity', category: 'branding' },
+    { value: 'brand-guidelines', label: 'Brand Guidelines', category: 'branding' },
+    { value: 'brand-strategy', label: 'Brand Strategy', category: 'branding' },
+    
+    // Consultation services
+    { value: 'digital-strategy', label: 'Digital Strategy', category: 'consultation' },
+    { value: 'marketing-consultation', label: 'Marketing Consultation', category: 'consultation' },
+    { value: 'website-consultation', label: 'Website Consultation', category: 'consultation' }
   ]
 
   const handleAddRequirement = () => {
@@ -154,6 +189,11 @@ export default function CreateProjectPage() {
     return uploadedFilePaths
   }
 
+  // Filter service types based on selected category
+  const filteredServiceTypes = SERVICE_TYPES.filter(
+    service => service.category === category
+  )
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
@@ -165,7 +205,7 @@ export default function CreateProjectPage() {
       
       if (!user) throw new Error('You must be logged in to create a project')
       
-      // Validate required fields based on your table structure
+      // Validate required fields
       if (!title.trim()) throw new Error('Project title is required')
       if (!description.trim()) throw new Error('Description is required')
       if (!clientName.trim()) throw new Error('Client name is required')
@@ -178,10 +218,16 @@ export default function CreateProjectPage() {
         throw new Error('Please enter a valid email address')
       }
 
+      // Validate category is one of allowed values
+      const allowedCategories = ALLOWED_CATEGORIES.map(c => c.value)
+      if (!allowedCategories.includes(category)) {
+        throw new Error(`Category must be one of: ${allowedCategories.join(', ')}`)
+      }
+
       // Filter out empty requirements
       const filteredRequirements = requirements.filter(req => req.trim() !== '')
       
-      // Prepare project data EXACTLY matching your table structure
+      // Prepare project data - EXACTLY matching your table constraints
       const projectData = {
         // REQUIRED fields (NOT NULL in your table)
         title: title.trim(),
@@ -189,13 +235,13 @@ export default function CreateProjectPage() {
         client_email: clientEmail.trim(),
         client_name: clientName.trim(),
         service_type: serviceType,
+        category: category, // MUST be one of: web-design, graphic-design, digital-marketing, printing, branding, consultation
         
         // Foreign key
         client_id: user.id,
         
         // Optional fields with defaults (matching your table defaults)
         client_company: clientCompany.trim() || null,
-        category: category || null,
         priority: priority, // Default is 'medium' from your table
         status: 'pending', // Default from your table
         
@@ -262,7 +308,9 @@ export default function CreateProjectPage() {
       console.error('Full error:', error)
       
       // More specific error messages
-      if (error.message.includes('duplicate key')) {
+      if (error.message.includes('projects_category_check')) {
+        setError('Invalid category selected. Please choose from: Web Design, Graphic Design, Digital Marketing, Printing, Branding, or Consultation.')
+      } else if (error.message.includes('duplicate key')) {
         setError('A project with this title already exists')
       } else if (error.message.includes('foreign key')) {
         setError('User not found. Please try logging in again')
@@ -300,26 +348,6 @@ export default function CreateProjectPage() {
                 <div className="bg-white/20 p-4 rounded-xl">
                   <Sparkles className="h-8 w-8 text-white" />
                 </div>
-              </div>
-            </div>
-          </div>
-          
-          {/* Progress Steps */}
-          <div className="flex items-center justify-center mt-6 mb-4">
-            <div className="flex items-center space-x-4">
-              <div className="flex flex-col items-center">
-                <div className="w-10 h-10 rounded-full bg-orange-500 text-white flex items-center justify-center font-bold">1</div>
-                <span className="text-xs mt-2 text-gray-600">Basic Info</span>
-              </div>
-              <div className="w-16 h-1 bg-gray-300"></div>
-              <div className="flex flex-col items-center">
-                <div className="w-10 h-10 rounded-full bg-gray-300 text-gray-600 flex items-center justify-center font-bold">2</div>
-                <span className="text-xs mt-2 text-gray-600">Details</span>
-              </div>
-              <div className="w-16 h-1 bg-gray-300"></div>
-              <div className="flex flex-col items-center">
-                <div className="w-10 h-10 rounded-full bg-gray-300 text-gray-600 flex items-center justify-center font-bold">3</div>
-                <span className="text-xs mt-2 text-gray-600">Files</span>
               </div>
             </div>
           </div>
@@ -443,7 +471,45 @@ export default function CreateProjectPage() {
                     </div>
                   </div>
 
-                  {/* Service Type - REQUIRED */}
+                  {/* Category - REQUIRED (matches table constraint) */}
+                  <div className="transform transition-all hover:scale-[1.01]">
+                    <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
+                      <Tag className="h-4 w-4 mr-2 text-blue-500" />
+                      Category *
+                    </label>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                      {ALLOWED_CATEGORIES.map((cat) => (
+                        <button
+                          key={cat.value}
+                          type="button"
+                          onClick={() => {
+                            setCategory(cat.value)
+                            // Auto-select first service type for this category
+                            const firstService = SERVICE_TYPES.find(s => s.category === cat.value)
+                            if (firstService) {
+                              setServiceType(firstService.value)
+                            }
+                          }}
+                          className={`p-4 rounded-xl border transition-all flex flex-col items-center justify-center ${
+                            category === cat.value 
+                              ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-500/20' 
+                              : 'border-gray-300 hover:border-blue-400 hover:bg-blue-50/50'
+                          }`}
+                        >
+                          <div className="mb-2">
+                            {cat.icon}
+                          </div>
+                          <span className="font-medium text-gray-900 text-sm">{cat.label}</span>
+                          <span className="text-xs text-gray-500 mt-1 text-center">{cat.description}</span>
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-sm text-gray-500 mt-2">
+                      Selected: <span className="font-medium">{ALLOWED_CATEGORIES.find(c => c.value === category)?.label}</span>
+                    </p>
+                  </div>
+
+                  {/* Service Type - Filtered by Category */}
                   <div className="transform transition-all hover:scale-[1.01]">
                     <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
                       <Sparkles className="h-4 w-4 mr-2 text-blue-500" />
@@ -457,9 +523,9 @@ export default function CreateProjectPage() {
                         className="pl-4 pr-12 py-3.5 w-full border border-gray-300 rounded-xl focus:ring-3 focus:ring-blue-500/20 focus:border-blue-500 transition-all group-hover:border-blue-400 appearance-none bg-white"
                       >
                         <option value="">Select a service type</option>
-                        {SERVICE_TYPES.map((type) => (
-                          <option key={type.value} value={type.value} className="flex items-center">
-                            {type.label}
+                        {filteredServiceTypes.map((service) => (
+                          <option key={service.value} value={service.value}>
+                            {service.label}
                           </option>
                         ))}
                       </select>
@@ -474,23 +540,9 @@ export default function CreateProjectPage() {
                         </div>
                       )}
                     </div>
-                    
-                    {/* Service Type Description */}
-                    {serviceType && (
-                      <div className="mt-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                        <div className="flex items-start">
-                          {SERVICE_TYPES.find(t => t.value === serviceType)?.icon}
-                          <div className="ml-2">
-                            <p className="text-sm font-medium text-blue-900">
-                              {SERVICE_TYPES.find(t => t.value === serviceType)?.label}
-                            </p>
-                            <p className="text-xs text-blue-700">
-                              {SERVICE_TYPES.find(t => t.value === serviceType)?.description}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    )}
+                    <p className="text-xs text-gray-500 mt-1">
+                      Services available for {ALLOWED_CATEGORIES.find(c => c.value === category)?.label}
+                    </p>
                   </div>
 
                   {/* Project Description */}
@@ -560,24 +612,6 @@ export default function CreateProjectPage() {
 
                   {/* Additional Details Grid */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {/* Category */}
-                    <div className="transform transition-all hover:scale-[1.01]">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Category
-                      </label>
-                      <select
-                        value={category}
-                        onChange={(e) => setCategory(e.target.value)}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      >
-                        <option value="general">General</option>
-                        <option value="new">New Project</option>
-                        <option value="enhancement">Enhancement</option>
-                        <option value="maintenance">Maintenance</option>
-                        <option value="urgent">Urgent</option>
-                      </select>
-                    </div>
-
                     {/* Priority */}
                     <div className="transform transition-all hover:scale-[1.01]">
                       <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -621,22 +655,22 @@ export default function CreateProjectPage() {
                         />
                       </div>
                     </div>
-                  </div>
 
-                  {/* Deadline */}
-                  <div className="transform transition-all hover:scale-[1.01]">
-                    <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
-                      <Calendar className="h-4 w-4 mr-2 text-blue-500" />
-                      Deadline
-                    </label>
-                    <div className="relative">
-                      <input
-                        type="date"
-                        value={deadline}
-                        onChange={(e) => setDeadline(e.target.value)}
-                        className="pl-12 w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      />
-                      <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                    {/* Deadline */}
+                    <div className="transform transition-all hover:scale-[1.01]">
+                      <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
+                        <Calendar className="h-4 w-4 mr-2 text-blue-500" />
+                        Deadline
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="date"
+                          value={deadline}
+                          onChange={(e) => setDeadline(e.target.value)}
+                          className="pl-12 w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                        <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                      </div>
                     </div>
                   </div>
 
@@ -752,23 +786,14 @@ export default function CreateProjectPage() {
                               </div>
                             </div>
                             
-                            <div className="flex items-center gap-2">
-                              <div className="w-24 bg-gray-200 rounded-full h-2">
-                                <div 
-                                  className="bg-green-500 h-2 rounded-full transition-all duration-500"
-                                  style={{ width: '100%' }}
-                                ></div>
-                              </div>
-                              
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveFile(index)}
-                                className="p-2 text-gray-400 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
-                                title="Remove file"
-                              >
-                                <X className="h-5 w-5" />
-                              </button>
-                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveFile(index)}
+                              className="p-2 text-gray-400 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                              title="Remove file"
+                            >
+                              <X className="h-5 w-5" />
+                            </button>
                           </div>
                         ))}
                       </div>
@@ -814,7 +839,7 @@ export default function CreateProjectPage() {
                     Fields marked with * are required
                   </p>
                   <p className="mt-1 text-gray-500">
-                    Your project will be created and visible in your dashboard
+                    Category must be: Web Design, Graphic Design, Digital Marketing, Printing, Branding, or Consultation
                   </p>
                 </div>
                 
@@ -855,8 +880,12 @@ export default function CreateProjectPage() {
                     <span className="truncate">{title || 'Not set'}</span>
                   </div>
                   <div className="flex items-center gap-2">
+                    <span className="font-medium">Category:</span>
+                    <span>{ALLOWED_CATEGORIES.find(c => c.value === category)?.label || 'Not set'}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
                     <span className="font-medium">Service:</span>
-                    <span>{SERVICE_TYPES.find(t => t.value === serviceType)?.label || 'Not set'}</span>
+                    <span>{SERVICE_TYPES.find(s => s.value === serviceType)?.label || 'Not set'}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="font-medium">Priority:</span>
