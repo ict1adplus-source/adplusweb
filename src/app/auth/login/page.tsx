@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { supabase, ADMIN_EMAILS } from '@/contexts/AuthContext'
@@ -13,6 +13,7 @@ export default function LoginPage() {
   const [success, setSuccess] = useState('')
   const [checkingAuth, setCheckingAuth] = useState(true)
   const router = useRouter()
+  const formRef = useRef<HTMLFormElement>(null)
 
   // Handle email verification success from URL
   useEffect(() => {
@@ -145,8 +146,14 @@ export default function LoginPage() {
           setSuccess('Account created successfully! Please check your email and click the verification link to activate your account.')
           setIsLogin(true)
           
-          // Clear form
-          e.currentTarget.reset()
+          // Clear form fields manually instead of using reset()
+          if (formRef.current) {
+            const form = formRef.current
+            const inputs = form.querySelectorAll('input, textarea')
+            inputs.forEach(input => {
+              (input as HTMLInputElement).value = ''
+            })
+          }
         }
       }
     } catch (error: any) {
@@ -180,7 +187,7 @@ export default function LoginPage() {
         </div>
 
         <div className="bg-white rounded-2xl shadow-xl p-8">
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form ref={formRef} onSubmit={handleSubmit} className="space-y-6">
             {!isLogin && (
               <>
                 <div>
@@ -304,6 +311,15 @@ export default function LoginPage() {
                 setIsLogin(!isLogin)
                 setError('')
                 setSuccess('')
+                
+                // Clear form fields when switching between login/signup
+                if (formRef.current) {
+                  const form = formRef.current
+                  const inputs = form.querySelectorAll('input, textarea')
+                  inputs.forEach(input => {
+                    (input as HTMLInputElement).value = ''
+                  })
+                }
               }}
               className="text-orange-600 hover:text-orange-800 font-medium hover:underline"
             >
