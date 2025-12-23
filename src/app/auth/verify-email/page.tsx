@@ -4,9 +4,8 @@ import { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
-import { Mail, CheckCircle, Clock, ArrowRight } from 'lucide-react'
+import { Mail, CheckCircle, Clock, ArrowRight, RefreshCw } from 'lucide-react'
 
-// Create a separate component that uses useSearchParams
 function VerifyEmailContent() {
   const [email, setEmail] = useState('')
   const [verificationCode, setVerificationCode] = useState(['', '', '', '', '', ''])
@@ -14,17 +13,20 @@ function VerifyEmailContent() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [resendCooldown, setResendCooldown] = useState(0)
+  const [codeSent, setCodeSent] = useState(false)
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { user, verifyEmail, resendVerification } = useAuth()
+  const { user, sendVerificationCode, verifyEmailCode, confirmEmailVerified } = useAuth()
 
   useEffect(() => {
     // Get email from URL or auth context
     const urlEmail = searchParams.get('email')
     if (urlEmail) {
-      setEmail(urlEmail)
+      setEmail(decodeURIComponent(urlEmail))
+      sendNewCode(decodeURIComponent(urlEmail))
     } else if (user?.email) {
       setEmail(user.email)
+      sendNewCode(user.email)
     }
   }, [user, searchParams])
 
@@ -34,6 +36,25 @@ function VerifyEmailContent() {
       return () => clearTimeout(timer)
     }
   }, [resendCooldown])
+
+  const sendNewCode = async (emailToSend: string) => {
+    setLoading(true)
+    setError('')
+    
+    try {
+      const { data, error } = await sendVerificationCode(emailToSend)
+      
+      if (error) throw error
+      
+      setCodeSent(true)
+      setSuccess('A new 6-digit verification code has been sent to your email.')
+      setResendCooldown(60) // 60 seconds cooldown
+    } catch (error: any) {
+      setError(error.message || 'Failed to send verification code')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const handleCodeChange = (index: number, value: string) => {
     if (value.length <= 1 && /^\d*$/.test(value)) {
@@ -46,15 +67,27 @@ function VerifyEmailContent() {
         const nextInput = document.getElementById(`code-${index + 1}`)
         if (nextInput) (nextInput as HTMLInputElement).focus()
       }
+      
+      // Auto-submit when all digits are filled
+      if (index === 5 && value) {
+        const fullCode = [...newCode].join('')
+        if (fullCode.length === 6) {
+          handleSubmitCode(fullCode)
+        }
+      }
     }
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSubmitCode = async (code: string) => {
     setLoading(true)
     setError('')
 
-    const code = verificationCode.join('')
+    if (!email) {
+      setError('Email not found. Please try again.')
+      setLoading(false)
+      return
+    }
+
     if (code.length !== 6) {
       setError('Please enter the full 6-digit code')
       setLoading(false)
@@ -62,36 +95,65 @@ function VerifyEmailContent() {
     }
 
     try {
-      const { error } = await verifyEmail(code)
+      // Verify the code
+      const { data, error } = await verifyEmailCode(email, code)
       if (error) throw error
       
-      setSuccess('Email verified successfully! Redirecting to client dashboard...')
+      // Confirm email verification in user metadata
+      const { error: confirmError } = await confirmEmailVerified(email)
+      if (confirmError) {
+        console.warn('Could not update user metadata:', confirmError)
+      }
+      
+      setSuccess('Email verified successfully! Redirecting to dashboard...')
+      
+      // Clear the code
+      setVerificationCode(['', '', '', '', '', ''])
+      
+      // Redirect based on user type
       setTimeout(() => {
-        router.push('/client/dashboard')
+        const isAdmin = email.includes('admin') || email === 'yamikanitambala@gmail.com' || email === 'yankhojchigaru@gmail.com'
+        if (isAdmin) {
+          window.location.href = '/admin/dashboard'
+        } else {
+          window.location.href = '/client/dashboard'
+        }
       }, 2000)
     } catch (error: any) {
       setError(error.message || 'Invalid verification code')
+      // Clear invalid code
+      setVerificationCode(['', '', '', '', '', ''])
+      // Focus first input
+      const firstInput = document.getElementById('code-0')
+      if (firstInput) (firstInput as HTMLInputElement).focus()
     } finally {
       setLoading(false)
     }
   }
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const code = verificationCode.join('')
+    await handleSubmitCode(code)
+  }
+
   const handleResendCode = async () => {
     if (resendCooldown > 0 || !email) return
+    await sendNewCode(email)
+  }
 
-    setLoading(true)
-    setError('')
+  const handlePaste = (e: React.ClipboardEvent) => {
+    e.preventDefault()
+    const pastedData = e.clipboardData.getData('text').trim()
     
-    try {
-      const { error } = await resendVerification(email)
-      if (error) throw error
+    if (/^\d{6}$/.test(pastedData)) {
+      const digits = pastedData.split('')
+      setVerificationCode(digits)
       
-      setSuccess('Verification code sent! Check your email.')
-      setResendCooldown(60) // 60 seconds cooldown
-    } catch (error: any) {
-      setError(error.message || 'Failed to resend code')
-    } finally {
-      setLoading(false)
+      // Auto-submit
+      setTimeout(() => {
+        handleSubmitCode(pastedData)
+      }, 100)
     }
   }
 
@@ -104,19 +166,19 @@ function VerifyEmailContent() {
           </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Verify Your Email</h1>
           <p className="text-gray-600">
-            We sent a 6-digit code to <span className="font-semibold">{email}</span>
+            Enter the 6-digit code sent to <span className="font-semibold">{email}</span>
           </p>
           <p className="text-sm text-gray-500 mt-2">
-            Check your inbox and enter the code below
+            The code will expire in 10 minutes
           </p>
         </div>
 
         <div className="bg-white rounded-2xl shadow-xl p-8">
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmit} onPaste={handlePaste}>
             {/* Code Input */}
             <div className="mb-8">
               <label className="block text-sm font-medium text-gray-700 mb-4">
-                Verification Code
+                6-Digit Verification Code
               </label>
               <div className="flex justify-between gap-2">
                 {verificationCode.map((digit, index) => (
@@ -128,11 +190,16 @@ function VerifyEmailContent() {
                     maxLength={1}
                     value={digit}
                     onChange={(e) => handleCodeChange(index, e.target.value)}
+                    onFocus={(e) => e.target.select()}
                     className="w-full h-14 text-center text-2xl font-bold border-2 border-gray-300 rounded-lg focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 transition-colors"
                     autoFocus={index === 0}
+                    disabled={loading}
                   />
                 ))}
               </div>
+              <p className="text-xs text-gray-500 mt-2 text-center">
+                Tip: You can paste the entire 6-digit code
+              </p>
             </div>
 
             {error && (
@@ -161,13 +228,11 @@ function VerifyEmailContent() {
                 type="button"
                 onClick={handleResendCode}
                 disabled={loading || resendCooldown > 0}
-                className="text-orange-600 hover:text-orange-800 font-medium disabled:opacity-50"
+                className="inline-flex items-center text-orange-600 hover:text-orange-800 font-medium disabled:opacity-50"
               >
+                <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
                 {resendCooldown > 0 ? (
-                  <>
-                    <Clock className="inline h-4 w-4 mr-1" />
-                    Resend code in {resendCooldown}s
-                  </>
+                  `Resend code in ${resendCooldown}s`
                 ) : (
                   'Resend verification code'
                 )}
@@ -185,6 +250,17 @@ function VerifyEmailContent() {
                 Back to login
               </Link>
             </div>
+          </div>
+        </div>
+
+        <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="text-center">
+            <p className="text-sm text-blue-700">
+              <strong>Development Mode:</strong> Check your browser console for the verification code
+            </p>
+            <p className="text-xs text-blue-600 mt-1">
+              In production, this code would be sent to your email
+            </p>
           </div>
         </div>
 
