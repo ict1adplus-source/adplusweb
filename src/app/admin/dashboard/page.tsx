@@ -1,84 +1,122 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useRouter, usePathname } from 'next/navigation'
-import { supabase, ADMIN_EMAILS } from '@/contexts/AuthContext'
-import Link from 'next/link'
-import {
-  LayoutDashboard,
-  FolderKanban,
-  Users,
-  CreditCard,
-  Settings,
-  LogOut,
-  Menu,
-  X,
-  Bell,
-  User,
-  FileText,
-  BarChart3,
-  Calendar,
-  HelpCircle,
-  Home
-} from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { BarChart3, Users, FolderKanban, CreditCard, TrendingUp, Clock, CheckCircle, AlertCircle } from 'lucide-react'
 
-export default function AdminLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
-  const router = useRouter()
-  const pathname = usePathname()
-  const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [adminInfo, setAdminInfo] = useState<any>(null)
+interface Project {
+  id: number
+  name: string
+  client: string
+  status: 'in-progress' | 'completed' | 'review' | 'pending'
+  dueDate: string
+}
+
+interface StatCard {
+  title: string
+  value: string | number
+  change: string
+  icon: any
+  color: string
+  description: string
+}
+
+export default function AdminDashboardPage() {
+  const [stats, setStats] = useState({
+    totalProjects: 0,
+    activeProjects: 0,
+    totalClients: 0,
+    pendingTasks: 0,
+    totalRevenue: 0,
+    completionRate: 0
+  })
+  const [recentProjects, setRecentProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    checkAdminAuth()
+    fetchDashboardData()
   }, [])
 
-  const checkAdminAuth = async () => {
+  const fetchDashboardData = async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession()
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1000))
       
-      if (!session) {
-        router.push('/auth/login')
-        return
-      }
-
-      if (!ADMIN_EMAILS.includes(session.user.email?.toLowerCase() || '')) {
-        router.push('/auth/login')
-        return
-      }
-
-      setAdminInfo(session.user)
+      setStats({
+        totalProjects: 24,
+        activeProjects: 8,
+        totalClients: 18,
+        pendingTasks: 12,
+        totalRevenue: 45231,
+        completionRate: 92
+      })
+      
+      setRecentProjects([
+        { id: 1, name: 'E-commerce Platform', client: 'TechCorp', status: 'in-progress', dueDate: '2024-12-15' },
+        { id: 2, name: 'Mobile App Redesign', client: 'StartupXYZ', status: 'completed', dueDate: '2024-11-30' },
+        { id: 3, name: 'Brand Identity', client: 'FreshBrand', status: 'review', dueDate: '2024-12-20' },
+        { id: 4, name: 'Website Migration', client: 'LegacyCorp', status: 'pending', dueDate: '2025-01-10' },
+      ])
     } catch (error) {
-      console.error('Auth error:', error)
-      router.push('/auth/login')
+      console.error('Error fetching dashboard data:', error)
     } finally {
       setLoading(false)
     }
   }
 
-  const handleSignOut = async () => {
-    try {
-      await supabase.auth.signOut()
-      router.push('/')
-    } catch (error) {
-      console.error('Sign out error:', error)
+  const statCards: StatCard[] = [
+    {
+      title: 'Total Projects',
+      value: stats.totalProjects,
+      change: '+12%',
+      icon: FolderKanban,
+      color: 'bg-blue-500',
+      description: 'Across all clients'
+    },
+    {
+      title: 'Active Projects',
+      value: stats.activeProjects,
+      change: '+3%',
+      icon: Clock,
+      color: 'bg-green-500',
+      description: 'Currently in progress'
+    },
+    {
+      title: 'Total Clients',
+      value: stats.totalClients,
+      change: '+5%',
+      icon: Users,
+      color: 'bg-purple-500',
+      description: 'Registered users'
+    },
+    {
+      title: 'Total Revenue',
+      value: `$${stats.totalRevenue.toLocaleString()}`,
+      change: '+20.1%',
+      icon: CreditCard,
+      color: 'bg-orange-500',
+      description: 'Year to date'
+    },
+  ]
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'completed': return <CheckCircle className="h-4 w-4 text-green-500" />
+      case 'in-progress': return <Clock className="h-4 w-4 text-blue-500" />
+      case 'review': return <AlertCircle className="h-4 w-4 text-yellow-500" />
+      default: return <Clock className="h-4 w-4 text-gray-500" />
     }
   }
 
-  const navigation = [
-    { name: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
-    { name: 'Projects', href: '/admin/projects', icon: FolderKanban },
-    { name: 'Create Project', href: '/admin/projects/create', icon: FileText },
-    { name: 'Clients', href: '/admin/clients', icon: Users },
-    { name: 'Payments', href: '/admin/payments', icon: CreditCard },
-    { name: 'Reports', href: '/admin/reports', icon: BarChart3 },
-    { name: 'Calendar', href: '/admin/calendar', icon: Calendar },
-    { name: 'Settings', href: '/admin/settings', icon: Settings },
-  ]
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'completed': return 'bg-green-100 text-green-800'
+      case 'in-progress': return 'bg-blue-100 text-blue-800'
+      case 'review': return 'bg-yellow-100 text-yellow-800'
+      case 'pending': return 'bg-gray-100 text-gray-800'
+      default: return 'bg-gray-100 text-gray-800'
+    }
+  }
 
   if (loading) {
     return (
@@ -89,129 +127,119 @@ export default function AdminLayout({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Sidebar for mobile */}
-      <div className={`fixed inset-0 z-40 lg:hidden ${sidebarOpen ? 'block' : 'hidden'}`}>
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-75" onClick={() => setSidebarOpen(false)}></div>
-        <div className="fixed inset-y-0 left-0 flex flex-col w-64 bg-white shadow-xl">
-          <div className="flex items-center justify-between h-16 px-4 border-b">
-            <span className="text-xl font-bold text-gray-900">Admin Panel</span>
-            <button onClick={() => setSidebarOpen(false)} className="p-2">
-              <X className="h-6 w-6" />
-            </button>
-          </div>
-          <nav className="flex-1 p-4 space-y-2">
-            {navigation.map((item) => (
-              <Link
-                key={item.name}
-                href={item.href}
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                  pathname === item.href
-                    ? 'bg-orange-100 text-orange-700'
-                    : 'text-gray-700 hover:bg-gray-100'
-                }`}
-                onClick={() => setSidebarOpen(false)}
-              >
-                <item.icon className="h-5 w-5" />
-                {item.name}
-              </Link>
-            ))}
-          </nav>
-          <div className="p-4 border-t">
-            <div className="flex items-center gap-3 p-3">
-              <div className="h-10 w-10 bg-orange-100 rounded-full flex items-center justify-center">
-                <User className="h-5 w-5 text-orange-600" />
-              </div>
-              <div className="flex-1">
-                <p className="font-medium">{adminInfo?.email}</p>
-                <p className="text-sm text-gray-500">Administrator</p>
-              </div>
-            </div>
-            <button
-              onClick={handleSignOut}
-              className="w-full flex items-center gap-3 px-4 py-3 text-red-600 hover:bg-red-50 rounded-lg"
-            >
-              <LogOut className="h-5 w-5" />
-              Sign Out
-            </button>
-          </div>
-        </div>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
+        <p className="text-gray-600 mt-2">Welcome back! Here's an overview of your platform.</p>
       </div>
 
-      {/* Desktop sidebar */}
-      <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col">
-        <div className="flex flex-col flex-1 bg-white border-r">
-          <div className="flex items-center h-16 px-4 border-b">
-            <span className="text-xl font-bold text-gray-900">Admin Panel</span>
-          </div>
-          <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-            {navigation.map((item) => (
-              <Link
-                key={item.name}
-                href={item.href}
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                  pathname.startsWith(item.href)
-                    ? 'bg-orange-100 text-orange-700'
-                    : 'text-gray-700 hover:bg-gray-100'
-                }`}
-              >
-                <item.icon className="h-5 w-5" />
-                {item.name}
-              </Link>
-            ))}
-          </nav>
-          <div className="p-4 border-t">
-            <div className="flex items-center gap-3 p-3">
-              <div className="h-10 w-10 bg-orange-100 rounded-full flex items-center justify-center">
-                <User className="h-5 w-5 text-orange-600" />
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {statCards.map((stat, index) => (
+          <Card key={index}>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">{stat.title}</p>
+                  <p className="text-2xl font-bold mt-2">{stat.value}</p>
+                  <p className="text-sm text-green-600 mt-1">{stat.change} from last month</p>
+                  <p className="text-xs text-gray-500 mt-1">{stat.description}</p>
+                </div>
+                <div className={`${stat.color} p-3 rounded-lg`}>
+                  <stat.icon className="h-6 w-6 text-white" />
+                </div>
               </div>
-              <div className="flex-1">
-                <p className="font-medium truncate">{adminInfo?.email}</p>
-                <p className="text-sm text-gray-500">Administrator</p>
-              </div>
-            </div>
-            <button
-              onClick={handleSignOut}
-              className="w-full flex items-center gap-3 px-4 py-3 text-red-600 hover:bg-red-50 rounded-lg"
-            >
-              <LogOut className="h-5 w-5" />
-              Sign Out
-            </button>
-          </div>
-        </div>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
-      {/* Main content */}
-      <div className="lg:pl-64">
-        <div className="sticky top-0 z-10 bg-white border-b lg:static">
-          <div className="flex items-center justify-between h-16 px-4">
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="lg:hidden p-2 hover:bg-gray-100 rounded-lg"
-            >
-              <Menu className="h-6 w-6" />
-            </button>
-            <div className="flex-1 lg:hidden"></div>
-            <div className="flex items-center gap-4">
-              <Link
-                href="/"
-                className="hidden lg:flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg"
-              >
-                <Home className="h-4 w-4" />
-                Back to Site
-              </Link>
-              <button className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg">
-                <Bell className="h-5 w-5" />
-              </button>
-              <button className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg">
-                <HelpCircle className="h-5 w-5" />
-              </button>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Recent Projects */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Recent Projects</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {recentProjects.map((project) => (
+                <div key={project.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50">
+                  <div className="flex items-center gap-3">
+                    {getStatusIcon(project.status)}
+                    <div>
+                      <h4 className="font-medium">{project.name}</h4>
+                      <p className="text-sm text-gray-600">Client: {project.client}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm text-gray-600">Due: {project.dueDate}</p>
+                    <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(project.status)}`}>
+                      {project.status.replace('-', ' ')}
+                    </span>
+                  </div>
+                </div>
+              ))}
             </div>
-          </div>
-        </div>
-        <main className="p-4 lg:p-6">
-          {children}
-        </main>
+          </CardContent>
+        </Card>
+
+        {/* Quick Stats */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Platform Overview</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-blue-100 rounded-lg">
+                    <FolderKanban className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="font-medium">Projects Completion Rate</p>
+                    <p className="text-sm text-gray-600">Average across all projects</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-2xl font-bold">{stats.completionRate}%</p>
+                  <p className="text-sm text-green-600">+3% from last month</p>
+                </div>
+              </div>
+
+              <div className="flex justify-between items-center p-3 bg-orange-50 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-orange-100 rounded-lg">
+                    <Clock className="h-5 w-5 text-orange-600" />
+                  </div>
+                  <div>
+                    <p className="font-medium">Pending Tasks</p>
+                    <p className="text-sm text-gray-600">Requiring attention</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-2xl font-bold">{stats.pendingTasks}</p>
+                  <p className="text-sm text-red-600">-2 from yesterday</p>
+                </div>
+              </div>
+
+              <div className="flex justify-between items-center p-3 bg-purple-50 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-purple-100 rounded-lg">
+                    <Users className="h-5 w-5 text-purple-600" />
+                  </div>
+                  <div>
+                    <p className="font-medium">New Clients This Month</p>
+                    <p className="text-sm text-gray-600">Recently registered</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-2xl font-bold">3</p>
+                  <p className="text-sm text-green-600">+50% from last month</p>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   )
