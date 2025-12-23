@@ -45,7 +45,7 @@ export default function CreateProjectPage() {
   // Form fields - UPDATED TO MATCH TABLE CONSTRAINTS
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
-  const [serviceType, setServiceType] = useState('web-design') // UPDATED: Must match allowed categories
+  const [serviceType, setServiceType] = useState('website-development') // Updated default
   const [clientName, setClientName] = useState('')
   const [clientEmail, setClientEmail] = useState('')
   const [clientCompany, setClientCompany] = useState('')
@@ -58,23 +58,37 @@ export default function CreateProjectPage() {
   const [uploadingFiles, setUploadingFiles] = useState(false)
   const [additionalNotes, setAdditionalNotes] = useState('')
 
-  // Fetch user data
+  // Fetch user data with better error handling
   useEffect(() => {
     const fetchUserData = async () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (user) {
-          setUserData(user)
-          setClientName(user.user_metadata?.name || '')
-          setClientEmail(user.email || '')
-          setClientCompany(user.user_metadata?.company || '')
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+        
+        if (sessionError) {
+          console.error('Session error:', sessionError)
+          setError('Session error. Please refresh the page.')
+          return
         }
+        
+        if (!session || !session.user) {
+          console.log('No session found, redirecting to login')
+          router.push('/auth/login')
+          return
+        }
+        
+        console.log('User session found:', session.user.id, session.user.email)
+        setUserData(session.user)
+        setClientName(session.user.user_metadata?.name || '')
+        setClientEmail(session.user.email || '')
+        setClientCompany(session.user.user_metadata?.company || '')
+        
       } catch (error) {
         console.error('Error fetching user:', error)
+        setError('Failed to load user data. Please refresh the page.')
       }
     }
     fetchUserData()
-  }, [])
+  }, [router])
 
   // UPDATED SERVICE TYPES - MUST MATCH TABLE CONSTRAINTS
   const ALLOWED_CATEGORIES = [
@@ -93,34 +107,45 @@ export default function CreateProjectPage() {
     { value: 'ecommerce-site', label: 'E-commerce Website', category: 'web-design' },
     { value: 'web-redesign', label: 'Website Redesign', category: 'web-design' },
     { value: 'mobile-responsive', label: 'Mobile Responsive Design', category: 'web-design' },
+    { value: 'landing-page', label: 'Landing Page', category: 'web-design' },
+    { value: 'cms-website', label: 'CMS Website', category: 'web-design' },
     
     // Graphic Design services
     { value: 'logo-design', label: 'Logo Design', category: 'graphic-design' },
     { value: 'brochure-design', label: 'Brochure Design', category: 'graphic-design' },
     { value: 'business-card', label: 'Business Cards', category: 'graphic-design' },
     { value: 'social-media-graphics', label: 'Social Media Graphics', category: 'graphic-design' },
+    { value: 'flyer-design', label: 'Flyer Design', category: 'graphic-design' },
+    { value: 'poster-design', label: 'Poster Design', category: 'graphic-design' },
     
     // Digital Marketing services
     { value: 'seo-optimization', label: 'SEO Optimization', category: 'digital-marketing' },
     { value: 'social-media-management', label: 'Social Media Management', category: 'digital-marketing' },
     { value: 'google-ads', label: 'Google Ads', category: 'digital-marketing' },
     { value: 'content-marketing', label: 'Content Marketing', category: 'digital-marketing' },
+    { value: 'email-marketing', label: 'Email Marketing', category: 'digital-marketing' },
+    { value: 'ppc-campaign', label: 'PPC Campaign', category: 'digital-marketing' },
     
     // Printing services
     { value: 'business-cards-print', label: 'Business Cards Printing', category: 'printing' },
     { value: 'flyers-print', label: 'Flyers Printing', category: 'printing' },
     { value: 'brochures-print', label: 'Brochures Printing', category: 'printing' },
     { value: 'banners-print', label: 'Banners Printing', category: 'printing' },
+    { value: 'letterheads-print', label: 'Letterheads Printing', category: 'printing' },
+    { value: 'stickers-print', label: 'Stickers Printing', category: 'printing' },
     
     // Branding services
     { value: 'brand-identity', label: 'Brand Identity', category: 'branding' },
     { value: 'brand-guidelines', label: 'Brand Guidelines', category: 'branding' },
     { value: 'brand-strategy', label: 'Brand Strategy', category: 'branding' },
+    { value: 'corporate-identity', label: 'Corporate Identity', category: 'branding' },
     
     // Consultation services
     { value: 'digital-strategy', label: 'Digital Strategy', category: 'consultation' },
     { value: 'marketing-consultation', label: 'Marketing Consultation', category: 'consultation' },
-    { value: 'website-consultation', label: 'Website Consultation', category: 'consultation' }
+    { value: 'website-consultation', label: 'Website Consultation', category: 'consultation' },
+    { value: 'brand-consultation', label: 'Brand Consultation', category: 'consultation' },
+    { value: 'seo-consultation', label: 'SEO Consultation', category: 'consultation' }
   ]
 
   const handleAddRequirement = () => {
@@ -150,6 +175,7 @@ export default function CreateProjectPage() {
     
     if (validFiles.length !== newFiles.length) {
       setError('Some files exceed 10MB limit and were not added')
+      setTimeout(() => setError(''), 3000)
     }
     
     setUploadedFiles(prev => [...prev, ...validFiles])
@@ -201,9 +227,21 @@ export default function CreateProjectPage() {
     setSuccess('')
 
     try {
-      const { data: { user } } = await supabase.auth.getUser()
+      // FIRST: Get the current session with proper error handling
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
       
-      if (!user) throw new Error('You must be logged in to create a project')
+      if (sessionError) {
+        console.error('Session error:', sessionError)
+        throw new Error(`Session error: ${sessionError.message}. Please refresh the page.`)
+      }
+      
+      if (!session || !session.user) {
+        console.error('No session found')
+        throw new Error('You must be logged in to create a project. Please sign in again.')
+      }
+      
+      const user = session.user
+      console.log('Creating project for user ID:', user.id, 'Email:', user.email)
       
       // Validate required fields
       if (!title.trim()) throw new Error('Project title is required')
@@ -237,7 +275,7 @@ export default function CreateProjectPage() {
         service_type: serviceType,
         category: category, // MUST be one of: web-design, graphic-design, digital-marketing, printing, branding, consultation
         
-        // Foreign key
+        // Foreign key - CRITICAL: Use the authenticated user's ID
         client_id: user.id,
         
         // Optional fields with defaults (matching your table defaults)
@@ -258,6 +296,7 @@ export default function CreateProjectPage() {
       }
 
       console.log('Submitting project data:', projectData)
+      console.log('User ID being used:', user.id)
 
       // Insert project
       const { data: project, error: insertError } = await supabase
@@ -267,9 +306,31 @@ export default function CreateProjectPage() {
         .single()
 
       if (insertError) {
-        console.error('Insert error details:', insertError)
+        console.error('Insert error details:', {
+          message: insertError.message,
+          details: insertError.details,
+          hint: insertError.hint,
+          code: insertError.code
+        })
+        
+        // Check for foreign key constraint violation
+        if (insertError.code === '23503' || insertError.message.includes('foreign key')) {
+          throw new Error(`User authentication issue. Please try signing out and back in. Error code: ${insertError.code}`)
+        }
+        
+        // Check for other common errors
+        if (insertError.code === '42501') {
+          throw new Error('Permission denied. Check your Row Level Security (RLS) policies.')
+        }
+        
+        if (insertError.code === '23505') {
+          throw new Error('A project with similar details already exists.')
+        }
+        
         throw insertError
       }
+
+      console.log('Project created successfully:', project.id)
 
       // Upload files if any
       if (uploadedFiles.length > 0) {
@@ -297,7 +358,7 @@ export default function CreateProjectPage() {
         }
       }
 
-      setSuccess('Project created successfully! Redirecting to dashboard...')
+      setSuccess(`Project "${title}" created successfully! Redirecting to dashboard...`)
       
       // Redirect after success
       setTimeout(() => {
@@ -308,14 +369,14 @@ export default function CreateProjectPage() {
       console.error('Full error:', error)
       
       // More specific error messages
-      if (error.message.includes('projects_category_check')) {
+      if (error.message.includes('User not found') || error.message.includes('foreign key') || error.message.includes('authentication')) {
+        setError('Authentication error. Please sign out and sign back in.')
+      } else if (error.message.includes('projects_category_check')) {
         setError('Invalid category selected. Please choose from: Web Design, Graphic Design, Digital Marketing, Printing, Branding, or Consultation.')
       } else if (error.message.includes('duplicate key')) {
         setError('A project with this title already exists')
-      } else if (error.message.includes('foreign key')) {
-        setError('User not found. Please try logging in again')
-      } else if (error.message.includes('permission')) {
-        setError('You do not have permission to create projects. Check RLS policies.')
+      } else if (error.message.includes('permission') || error.message.includes('RLS')) {
+        setError('Permission denied. Check your database Row Level Security policies.')
       } else {
         setError(error.message || 'Failed to create project. Please check all required fields.')
       }
@@ -323,6 +384,21 @@ export default function CreateProjectPage() {
       setLoading(false)
       setUploadingFiles(false)
     }
+  }
+
+  // If no user data, show loading
+  if (!userData) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-orange-50 via-white to-yellow-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mb-4"></div>
+        <p className="text-gray-600">Loading user data...</p>
+        {error && (
+          <div className="mt-4 p-4 bg-red-50 border border-red-200 text-red-600 rounded-lg max-w-md">
+            {error}
+          </div>
+        )}
+      </div>
+    )
   }
 
   return (
@@ -342,7 +418,7 @@ export default function CreateProjectPage() {
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-3xl font-bold text-white mb-2">Create New Project</h1>
-                <p className="text-orange-100">Fill in all required details for your new project request</p>
+                <p className="text-orange-100">Logged in as: {userData.email}</p>
               </div>
               <div className="hidden md:block">
                 <div className="bg-white/20 p-4 rounded-xl">
@@ -812,6 +888,12 @@ export default function CreateProjectPage() {
                     <div>
                       <p className="font-medium text-red-900">Error Creating Project</p>
                       <p className="text-red-700 mt-1">{error}</p>
+                      <button
+                        onClick={() => router.push('/auth/login')}
+                        className="mt-2 text-sm text-red-700 underline hover:text-red-900"
+                      >
+                        Click here to sign in again
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -839,7 +921,7 @@ export default function CreateProjectPage() {
                     Fields marked with * are required
                   </p>
                   <p className="mt-1 text-gray-500">
-                    Category must be: Web Design, Graphic Design, Digital Marketing, Printing, Branding, or Consultation
+                    Logged in as: {userData.email}
                   </p>
                 </div>
                 
