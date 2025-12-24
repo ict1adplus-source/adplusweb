@@ -23,7 +23,7 @@ interface StatCard {
 }
 
 export default function AdminDashboardPage() {
-  const { admin } = useAdmin()
+  const { admin, loading } = useAdmin()
   const [stats, setStats] = useState({
     totalProjects: 0,
     activeProjects: 0,
@@ -33,14 +33,19 @@ export default function AdminDashboardPage() {
     completionRate: 0
   })
   const [recentProjects, setRecentProjects] = useState<Project[]>([])
-  const [loading, setLoading] = useState(true)
+  const [dataLoading, setDataLoading] = useState(true)
 
   useEffect(() => {
-    fetchDashboardData()
-  }, [])
+    console.log('Dashboard: Admin context:', { admin, loading })
+    
+    if (!loading && admin) {
+      fetchDashboardData()
+    }
+  }, [admin, loading])
 
   const fetchDashboardData = async () => {
     try {
+      console.log('Fetching dashboard data...')
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1000))
       
@@ -62,7 +67,7 @@ export default function AdminDashboardPage() {
     } catch (error) {
       console.error('Error fetching dashboard data:', error)
     } finally {
-      setLoading(false)
+      setDataLoading(false)
     }
   }
 
@@ -120,10 +125,45 @@ export default function AdminDashboardPage() {
     }
   }
 
+  // Show loading state
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Checking authentication...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // If not admin, show access denied
+  if (!admin) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <div className="text-center">
+          <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Access Denied</h2>
+          <p className="text-gray-600 mb-4">You need to be logged in as an admin to access this page.</p>
+          <a 
+            href="/admin/login" 
+            className="inline-flex items-center px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600"
+          >
+            Go to Login
+          </a>
+        </div>
+      </div>
+    )
+  }
+
+  // Show data loading
+  if (dataLoading) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading dashboard data...</p>
+        </div>
       </div>
     )
   }

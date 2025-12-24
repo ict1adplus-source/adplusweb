@@ -32,6 +32,8 @@ export default function AdminLoginPage() {
         throw new Error('System configuration error')
       }
 
+      console.log('Attempting login for:', email)
+
       const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
       // Sign in
@@ -40,8 +42,12 @@ export default function AdminLoginPage() {
         password,
       })
       
+      console.log('Login response:', { authData, signInError })
+      
       if (signInError) throw signInError
       if (!authData?.user) throw new Error('Authentication failed')
+
+      console.log('User authenticated, checking admin role...')
 
       // Check admin role
       const { data: userData, error: userError } = await supabase
@@ -50,19 +56,24 @@ export default function AdminLoginPage() {
         .eq('email', email)
         .single()
 
+      console.log('User data check:', { userData, userError })
+
       if (userError) {
+        console.error('User not found in users table:', userError)
         await supabase.auth.signOut()
-        throw new Error('Admin account not found')
+        throw new Error('Admin account not found. Make sure your account exists in the users table.')
       }
 
       if (userData?.role !== 'admin') {
+        console.error('User is not admin, role:', userData?.role)
         await supabase.auth.signOut()
         throw new Error('Access denied. Admin privileges required.')
       }
 
-      // Redirect to dashboard
-      router.push('/admin/dashboard')
-      router.refresh()
+      console.log('Login successful, redirecting...')
+
+      // Force a hard refresh to update the auth state
+      window.location.href = '/admin/dashboard'
 
     } catch (error: any) {
       console.error('Admin login error:', error)
@@ -78,6 +89,8 @@ export default function AdminLoginPage() {
         setError('Access denied. Admin privileges required.')
       } else if (error.message.includes('System configuration error')) {
         setError('System configuration error. Please contact administrator.')
+      } else if (error.message.includes('Admin account not found')) {
+        setError('Admin account not found. Please contact administrator.')
       } else {
         setError(error.message || 'Login failed. Please try again.')
       }
