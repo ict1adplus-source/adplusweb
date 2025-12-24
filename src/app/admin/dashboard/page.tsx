@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { useAdmin } from '@/contexts/AdminContext'
 import { BarChart3, Users, FolderKanban, CreditCard, TrendingUp, Clock, CheckCircle, AlertCircle } from 'lucide-react'
 
 interface Project {
@@ -22,6 +23,7 @@ interface StatCard {
 }
 
 export default function AdminDashboardPage() {
+  const { admin } = useAdmin()
   const [stats, setStats] = useState({
     totalProjects: 0,
     activeProjects: 0,
@@ -130,7 +132,7 @@ export default function AdminDashboardPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
-        <p className="text-gray-600 mt-2">Welcome back! Here's an overview of your platform.</p>
+        <p className="text-gray-600 mt-2">Welcome back, {admin?.email}! Here's an overview of your platform.</p>
       </div>
 
       {/* Stats Grid */}

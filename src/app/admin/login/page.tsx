@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Lock, Shield, AlertCircle } from 'lucide-react'
+import { createClient } from '@supabase/supabase-js'
 
 export default function AdminLoginPage() {
   const [loading, setLoading] = useState(false)
@@ -24,9 +25,6 @@ export default function AdminLoginPage() {
         throw new Error('Email and password are required')
       }
 
-      // DYNAMIC IMPORT - This won't run during build
-      const { createClient } = await import('@supabase/supabase-js')
-      
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
       const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
       
@@ -62,6 +60,7 @@ export default function AdminLoginPage() {
         throw new Error('Access denied. Admin privileges required.')
       }
 
+      // Redirect to dashboard
       router.push('/admin/dashboard')
       router.refresh()
 

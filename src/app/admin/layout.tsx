@@ -38,13 +38,6 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
     { name: 'Security', href: '/admin/settings/security', icon: Shield },
   ]
 
-  // Redirect to login if not authenticated
-  useEffect(() => {
-    if (!loading && !admin && pathname !== '/admin/login') {
-      router.push('/admin/login')
-    }
-  }, [admin, loading, pathname, router])
-
   // Show loading state
   if (loading) {
     return (
@@ -59,7 +52,15 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
 
   // If not admin and not on login page, show nothing (will redirect)
   if (!admin && pathname !== '/admin/login') {
-    return null
+    // This will redirect via the AdminContext useEffect
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Redirecting to login...</p>
+        </div>
+      </div>
+    )
   }
 
   // Don't show layout for login page
